@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <or_ompl/OMPLPlanner.h>
 #include <or_ompl/OMPLConversions.h>
 #include <or_ompl/OMPLSimplifer.h>
+#include <or_ompl/OMPLNothing.h>
 #include <or_ompl/PlannerRegistry.h>
 
 using namespace OpenRAVE;
@@ -57,6 +58,9 @@ InterfaceBasePtr CreateInterfaceValidated(
         if (interfacename == "ompl_simplifier") {
             return boost::make_shared<or_ompl::OMPLSimplifier>(penv);
         } 
+        if (interfacename == "ompl_nothing") {
+            return boost::make_shared<or_ompl::OMPLNothing>(penv);
+        }
 
         // Check whether this is an automatically-wrapped planner.
         std::string const ompl_planner_name = interfacename.substr(5);
@@ -84,6 +88,8 @@ void GetPluginAttributesValidated(PLUGININFO &info) {
     }
 
     info.interfacenames[PT_Planner].push_back("OMPL_Simplifier");
+    info.interfacenames[PT_Planner].push_back("OMPL_Nothing");
+    
 
     // Forward OMPL log messages to OpenRAVE.
     ompl::msg::setLogLevel(ompl::msg::LOG_DEBUG);

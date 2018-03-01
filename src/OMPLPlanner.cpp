@@ -365,6 +365,8 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
             || ompl_status == ompl::base::PlannerStatus::APPROXIMATE_SOLUTION) {
 
             if (m_simple_setup->haveExactSolutionPath()) {
+                ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
+                RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
                 ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
                 if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION) {
                     planner_status = OpenRAVE::PS_HasSolution;

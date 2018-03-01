@@ -3,8 +3,6 @@
 Copyright (c) 2014, Carnegie Mellon University
 All rights reserved.
 
-Authors: Michael Koval <mkoval@cs.cmu.edu>
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -30,6 +28,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
 
+/*********************************
+ * A null pattern path simplifier.
+ * Author: Bryce Willey
+ *********************************/
+
+
 #include <boost/make_shared.hpp>
 #include <boost/scope_exit.hpp>
 #include <ompl/base/ScopedState.h>
@@ -37,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
-#include <or_ompl/OMPLSimplifer.h>
+#include <or_ompl/OMPLNothing.h>
 
 using OpenRAVE::PA_None;
 using OpenRAVE::PA_Interrupt;
@@ -48,14 +52,14 @@ using OpenRAVE::PS_InterruptedWithSolution;
 
 namespace or_ompl {
 
-OMPLSimplifier::OMPLSimplifier(OpenRAVE::EnvironmentBasePtr env)
+OMPLNothing::OMPLNothing(OpenRAVE::EnvironmentBasePtr env)
     : OpenRAVE::PlannerBase(env) {
 }
 
-OMPLSimplifier::~OMPLSimplifier() {
+OMPLNothing::~OMPLNothing() {
 }
 
-bool OMPLSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
+bool OMPLNothing::InitPlan(OpenRAVE::RobotBasePtr robot,
                               PlannerParametersConstPtr params_raw) {
     if (!robot) {
         RAVELOG_ERROR("Robot must not be NULL.\n");
@@ -102,13 +106,13 @@ bool OMPLSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
     }
 }
 
-bool OMPLSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream &input) {
+bool OMPLNothing::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream &input) {
     OMPLPlannerParametersPtr params = boost::make_shared<OMPLPlannerParameters>();
     input >> *params;
     return InitPlan(robot, params);
 }
 
-OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
+OpenRAVE::PlannerStatus OMPLNothing::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
     typedef ompl::base::ScopedState<ompl::base::StateSpace> ScopedState;
 
     if (!m_simplifier) {
@@ -149,80 +153,25 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
         path.append(waypoint_ompl.get());
     }
 
-    // Run path simplification.
-    OpenRAVE::PlannerBase::PlannerProgress progress;
-    OpenRAVE::PlannerAction planner_action = PA_None;
     double const length_before = path.length();
     double const smoothness_before = path.smoothness();
-    int num_changes = 0;
-
-    ompl::time::duration const time_limit
-        = ompl::time::seconds(m_parameters->m_timeLimit);
-    ompl::time::point const time_before = ompl::time::now();
-    ompl::time::point time_current;
-
-    RAVELOG_DEBUG("Running path simplification for %f seconds.\n",
-                  m_parameters->m_timeLimit);
-    
-    // start validity checker
-    m_or_validity_checker->start();
-    BOOST_SCOPE_EXIT((m_or_validity_checker)) {
-        m_or_validity_checker->stop();
-    } BOOST_SCOPE_EXIT_END
-
-    do {
-        // Run one iteration of shortcutting. This gives us fine control over
-        // the termination condition and allows us to invoke the planner
-        // callbacks between iterations.
-        //
-        // The numeric arguments are the following:
-        // - maxSteps: maximum number of iterations
-        // - maxEmptySteps: maximum number of iterations without improvement
-        // - rangeRatio: maximum connection distance attempted, specified as a
-        //               ratio of the total number of states
-        // - snapToVertex: ratio of total path length used to snap samples to
-        //                 vertices
-        bool const changed = m_simplifier->shortcutPath(path, 1, 1, 1.0, 0.005);
-        num_changes += !!changed;
-        progress._iteration += 1;
-
-        // Call any user-registered callbacks. These functions can terminate
-        // planning early.
-        planner_action = _CallCallbacks(progress);
-
-        time_current = ompl::time::now();
-    } while (time_current - time_before <= time_limit
-          && planner_action == PA_None);
-
-    double const length_after = path.length();
-    double const smoothness_after = path.smoothness();
 
     RAVELOG_WARN(
-        "Ran %d iterations of smoothing over %.3f seconds. %d of %d iterations"
-        " (%.2f%%) were effective. Reduced path length from %.3f to %.3f, "
-        "smoothness from %.3f to %.3f.\n",
-        progress._iteration,
-        ompl::time::seconds(time_current - time_before),
-        num_changes,
-        progress._iteration,
-        100 * static_cast<double>(num_changes) / progress._iteration,
-        length_before, length_after,
-        smoothness_before, smoothness_after
+        "Path length: %.3f, "
+        "Smoothness from %.3f.\n",
+        length_before,
+        smoothness_before
     );
 
     // Store the result in the OpenRAVE trajectory.
-    RAVELOG_DEBUG("Reconstructing OpenRAVE trajectory with %d waypoints.\n",
-                  path.getStateCount());
-    BOOST_ASSERT(ptraj);
-    ptraj->Remove(0, ptraj->GetNumWaypoints());
+    //RAVELOG_DEBUG("Reconstructing OpenRAVE trajectory with %d waypoints.\n",
+    //              path.getStateCount());
+    //BOOST_ASSERT(ptraj);
+    //ptraj->Remove(0, ptraj->GetNumWaypoints());
 
-    ToORTrajectory(m_robot, path, ptraj);
+    //ToORTrajectory(m_robot, path, ptraj);
 
-    if (planner_action == PA_None) {
-        return PS_HasSolution;
-    } else {
-        return PS_InterruptedWithSolution;
-    }
+    return PS_HasSolution;
 }
 
 } // namespace or_ompl

@@ -258,6 +258,7 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             bare_bones->addObjective(std::make_shared<ompl::base::JointDistanceObjective>(si));
             
             // Obstacle Objective: Make a jacobian getting and a Collision Info getter base on TrajOpt.
+             
             //TODO: get a robot model, and make a lambda that gets the jacobian.
             //TODO: setup a collision checker from the TrajOpt code. 
             //TODO

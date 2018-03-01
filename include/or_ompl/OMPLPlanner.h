@@ -47,6 +47,14 @@ namespace or_ompl {
 
 typedef boost::function<ompl::base::Planner *(ompl::base::SpaceInformationPtr)> PlannerFactory;
 
+class TrajOptWrapper {
+public:
+
+private:
+    
+
+};
+
 class OMPLPlanner: public OpenRAVE::PlannerBase {
 public:
     OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,

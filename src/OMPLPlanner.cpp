@@ -43,6 +43,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/StateSpaceTypes.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/objectives/CollisionEvaluator.h>
+#include <ompl/base/objectives/ObstacleConstraint.h>
+#include <ompl/base/objectives/JointDistanceObjective.h>
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
@@ -246,6 +249,23 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             return false;
         }
         m_simple_setup->setPlanner(m_planner);
+       
+        if (m_planner->getName() == "TrajOpt")
+        {
+            RAVELOG_DEBUG("Created a TrajOpt planner, adding the convex cost.");
+            const ompl::base::SpaceInformationPtr &si = m_simple_setup->getSpaceInformation();
+            ompl::base::MultiConvexifiableOptimizationPtr bare_bones = std::make_shared<ompl::base::MultiConvexifiableOptimization>(si);
+            bare_bones->addObjective(std::make_shared<ompl::base::JointDistanceObjective>(si));
+            
+            // Obstacle Objective: Make a jacobian getting and a Collision Info getter base on TrajOpt.
+            //TODO: get a robot model, and make a lambda that gets the jacobian.
+            //TODO: setup a collision checker from the TrajOpt code. 
+            //TODO
+        }
+        else
+        {
+            RAVELOG_DEBUG("Did not create a TrajOpt planner.");
+        }
 
         m_initialized = true;
         return true;

@@ -8,7 +8,7 @@ find_package(Boost REQUIRED COMPONENTS chrono system)
 find_package(OMPL REQUIRED)
 find_package(OpenRAVE REQUIRED)
 find_package(TinyXML REQUIRED)
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 # Setup compilation options for the check_cxx_source_compiles tests below.
 set(CMAKE_REQUIRED_INCLUDES ${OpenRAVE_INCLUDE_DIRS})
@@ -52,18 +52,23 @@ configure_file(
 catkin_package(
     INCLUDE_DIRS include ${CATKIN_DEVEL_PREFIX}/include
     LIBRARIES ${PROJECT_NAME}
-    DEPENDS Boost Eigen OMPL OpenRAVE
+    DEPENDS Boost Eigen3 OMPL OpenRAVE
 )
 
 if(NOT OR_OMPL_HAS_BOOSTSMARTPTRS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif(NOT OR_OMPL_HAS_BOOSTSMARTPTRS)
 
+set(BULLET_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/bullet/src)
+set(BULLET_LIBRARIES BulletCollision LinearMath)
+
 include_directories(
+    SYSTEM
+    ${BULLET_INCLUDE_DIRS}
     include
     ${CATKIN_DEVEL_PREFIX}/include
     ${Boost_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
     ${OMPL_INCLUDE_DIRS}
     ${OpenRAVE_INCLUDE_DIRS}
     ${TinyXML_INCLUDE_DIRS}
@@ -75,7 +80,7 @@ link_directories(
     ${catkin_LIBRARY_DIRS}
 )
 add_definitions(
-    ${Eigen_DEFINITIONS}
+    ${EIGEN3_DEFINITIONS}
 )
 
 # Generate the OMPL planner wrappers.
@@ -102,11 +107,16 @@ add_library(${PROJECT_NAME}
     src/TSRChain.cpp
     src/TSRGoal.cpp
     src/TSRRobot.cpp
+    src/TrajOpt/collision_checker.cpp
+    src/TrajOpt/configuration_space.cpp
+    src/TrajOpt/rave_utils.cpp
+    src/TrajOpt/bullet_unity.cpp
+    src/TrajOpt/bullet_collision_checker.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/src/PlannerRegistry.cpp"
 )
 target_link_libraries(${PROJECT_NAME}
     ${Boost_LIBRARIES}
-    ${Eigen_LIBRARIES}
+    ${EIGEN3_LIBRARIES}
     ${OMPL_LIBRARIES}
     ${OpenRAVE_LIBRARIES}
     ${TinyXML_LIBRARIES}

@@ -1,4 +1,4 @@
-#include "collision_checker.hpp"
+#include <or_ompl/TrajOpt/collision_checker.hpp>
 #include <btBulletCollisionCommon.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 #include <BulletCollision/CollisionDispatch/btConvexConvexAlgorithm.h>
@@ -6,9 +6,9 @@
 #include <vector>
 #include <iostream>
 #include <LinearMath/btConvexHull.h>
-#include "stl_to_string.hpp"
-//#include "utils/logging.hpp"
-#include "openrave_userdata_utils.hpp"
+#include <or_ompl/TrajOpt/stl_to_string.hpp>
+#include <or_ompl/TrajOpt/openrave_userdata_utils.hpp>
+
 using namespace util;
 using namespace std;
 using namespace trajopt;

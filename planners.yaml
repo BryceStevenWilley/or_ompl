@@ -39,3 +39,5 @@
   header: ompl/geometric/planners/prm/SPARStwo.h
 - name: ompl::geometric::TRRT
   header: ompl/geometric/planners/rrt/TRRT.h
+- name: ompl::geometric::TrajOpt
+  header: ompl/geometric/planners/trajopt/TrajOpt.h

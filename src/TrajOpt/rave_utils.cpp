@@ -1,7 +1,7 @@
-#include "rave_utils.hpp"
-using namespace OpenRAVE;
-//#include "utils/logging.hpp"
 #include <Eigen/Core>
+#include <or_ompl/TrajOpt/rave_utils.hpp>
+
+using namespace OpenRAVE;
 using namespace std;
 
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> DblMatrix;

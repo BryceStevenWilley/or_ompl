@@ -1,5 +1,5 @@
-#include "collision_checker.hpp"
-#include "rave_utils.hpp"
+#include <or_ompl/TrajOpt/collision_checker.hpp>
+#include <or_ompl/TrajOpt/rave_utils.hpp>
 using namespace OpenRAVE;
 
 namespace trajopt {

@@ -1,6 +1,7 @@
-#include "configuration_space.hpp"
 #include <cmath>
-#include "rave_utils.hpp"
+#include <or_ompl/TrajOpt/configuration_space.hpp>
+#include <or_ompl/TrajOpt/rave_utils.hpp>
+
 using namespace OpenRAVE;
 
 // TODO: configuration should know something about what dofs are part of SO(1), SO(2) etc for functions like RandomDOFValues
@@ -21,7 +22,7 @@ void RobotAndDOF::SetDOFValues(const DblVec& dofs) {
 }
 
 DblVec RobotAndDOF::GetDOFValues() {
-  DblVec out;
+  std::vector<double> out;
   if (joint_inds.size() > 0)
     robot->GetDOFValues(out, joint_inds);
   if (affinedofs != 0) {
@@ -78,6 +79,7 @@ void RobotAndDOF::GetDOFLimits(DblVec& lower, DblVec& upper) const {
 int RobotAndDOF::GetDOF() const {
   return joint_inds.size() + RaveGetAffineDOF(affinedofs);
 }
+
 DblMatrix RobotAndDOF::PositionJacobian(int link_ind, const OR::Vector& pt) const {
   Configuration::SaverPtr saver = const_cast<RobotAndDOF*>(this)->Save();
   const_cast<RobotAndDOF*>(this)->SetRobotActiveDOFs();
@@ -85,6 +87,7 @@ DblMatrix RobotAndDOF::PositionJacobian(int link_ind, const OR::Vector& pt) cons
   boost::dynamic_pointer_cast<RobotBase>(robot)->CalculateActiveJacobian(link_ind, pt, jacdata);
   return Eigen::Map<DblMatrix>(jacdata.data(), 3, GetDOF());
 }
+
 DblMatrix RobotAndDOF::RotationJacobian(int link_ind) const {
   Configuration::SaverPtr saver = const_cast<RobotAndDOF*>(this)->Save();
   const_cast<RobotAndDOF*>(this)->SetRobotActiveDOFs();
@@ -92,6 +95,7 @@ DblMatrix RobotAndDOF::RotationJacobian(int link_ind) const {
   boost::dynamic_pointer_cast<RobotBase>(robot)->ComputeJacobianAxisAngle(link_ind, jacdata);
   return Eigen::Map<DblMatrix>(jacdata.data(), 3, GetDOF());  
 }
+
 bool RobotAndDOF::DoesAffect(const KinBody::Link& link) {
   if (affinedofs > 0) return true;
   else if (link.GetParent() == GetRobot()) return trajopt::DoesAffect(*GetRobot(), joint_inds, GetRobotLinkIndex(*GetRobot(), link));
@@ -127,7 +131,6 @@ void RobotAndDOF::GetAffectedLinks(std::vector<KinBody::LinkPtr>& links, bool on
       }
     }
   }
-
 }
 
 std::vector<KinBodyPtr> RobotAndDOF::GetBodies() {

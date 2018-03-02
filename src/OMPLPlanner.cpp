@@ -55,6 +55,65 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace or_ompl {
 
+Eigen::MatrixXd TrajOptWrapper::jacobianAtPoint(ompl::base::CollisionInfo info, int which)
+{
+    rad_->SetDOFValues(info.x);
+    std::string link_name = info.link_names[which];
+    OpenRAVE::Vector stupid_vector(info.points[which].x(), info.points[which].y(), info.points[which].z());
+    return rad_->PositionJacobian(link2index_[link_name], stupid_vector);
+}
+
+bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration, 
+                                          std::vector<ompl::base::CollisionInfo>& collisionStructs)
+{
+    // TODO: worry about collision caching later.
+    rad_->SetDOFValues(configuration);
+    std::vector<trajopt::Collision> collisions;
+    coll_check_->LinksVsAll(links_ , collisions, -1);
+    for (auto coll : collisions)
+    {
+        ompl::base::CollisionInfo collisionStruct;
+        collisionStruct.x = configuration;
+
+        Eigen::Vector3d ptA(coll.ptA.x, coll.ptA.y, coll.ptA.z);   
+        Eigen::Vector3d ptB(coll.ptB.x, coll.ptB.y, coll.ptB.z);   
+        Eigen::Vector3d normal(coll.normalB2A.x, coll.normalB2A.y, coll.normalB2A.z);
+ 
+        auto itA = link2index_.find(coll.linkA->GetName());
+        auto itB = link2index_.find(coll.linkB->GetName());
+        collisionStruct.signedDist = coll.distance; 
+        // If both exist, it's a self collision.
+        if (itA != link2index_.end() && itB != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptA);                
+            collisionStruct.points.push_back(ptB);
+            collisionStruct.link_names.push_back(coll.linkA->GetName());
+            collisionStruct.link_names.push_back(coll.linkB->GetName());
+            collisionStruct.normal = normal;
+        }
+        // Otherwise, only link is in collision with the env.
+        else if (itA != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptA);
+            collisionStruct.link_names.push_back(coll.linkA->GetName());
+            collisionStruct.normal = normal;
+        }
+        else if (itB != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptB); 
+            collisionStruct.link_names.push_back(coll.linkB->GetName());
+            collisionStruct.normal = -normal;
+        }
+        // Otherwise, two world objects must be in collision with one another.
+        else
+        {
+            continue;
+        }
+        collisionStructs.push_back(collisionStruct);
+    }
+    return collisionStructs.size() > 0;
+}
+
 OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
                          PlannerFactory const &planner_factory)
     : OpenRAVE::PlannerBase(penv)
@@ -258,10 +317,19 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             bare_bones->addObjective(std::make_shared<ompl::base::JointDistanceObjective>(si));
             
             // Obstacle Objective: Make a jacobian getting and a Collision Info getter base on TrajOpt.
-             
-            //TODO: get a robot model, and make a lambda that gets the jacobian.
-            //TODO: setup a collision checker from the TrajOpt code. 
-            //TODO
+            trajopt::Configuration *rad = new trajopt::RobotAndDOF(m_robot, robot->GetActiveDOFIndices());
+            trajopt::CollisionCheckerPtr coll_check = trajopt::CollisionChecker::GetOrCreate(*m_robot->GetEnv());
+            m_wrapper = std::make_shared<TrajOptWrapper>(rad, coll_check); 
+            ompl::base::JacobianFn jacobian = [this](ompl::base::CollisionInfo collisionStruct, int which) {
+                return this->m_wrapper->jacobianAtPoint(collisionStruct, which);
+            };
+            ompl::base::WorkspaceCollisionFn collisions = [this](std::vector<double> configuration,
+                                                                 std::vector<ompl::base::CollisionInfo>& collisionStructs) {
+                return this->m_wrapper->extraCollisionInformation(configuration, collisionStructs); 
+            };
+            double safety_distance = 0.3;
+            bare_bones->addObjective(std::make_shared<ompl::base::ObstacleConstraint>(si, safety_distance, collisions, jacobian)); 
+            m_simple_setup->setOptimizationObjective(bare_bones);
         }
         else
         {

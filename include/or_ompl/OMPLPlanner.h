@@ -39,9 +39,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <openrave/planner.h>
 #include <openrave/planningutils.h>
 #include <ompl/geometric/SimpleSetup.h>
+#include <ompl/base/objectives/CollisionEvaluator.h>
 
 #include <or_ompl/StateSpaces.h>
 #include <or_ompl/OMPLPlannerParameters.h>
+#include <or_ompl/TrajOpt/configuration_space.hpp>
+#include <or_ompl/TrajOpt/collision_checker.hpp>
 
 namespace or_ompl {
 
@@ -49,10 +52,28 @@ typedef boost::function<ompl::base::Planner *(ompl::base::SpaceInformationPtr)> 
 
 class TrajOptWrapper {
 public:
+    TrajOptWrapper(trajopt::Configuration *rad, trajopt::CollisionCheckerPtr coll_check) :
+        rad_(rad), coll_check_(coll_check)
+    {
+        // Map the active link to its index in the robot.
+        std::vector<int> indices;
+        rad_->GetAffectedLinks(links_, true, indices);
+        for (int i = 0; i < links_.size(); i++)
+        {
+            link2index_[links_[i]->GetName()] = indices[i];
+        }
+    }
 
-private:
+    Eigen::MatrixXd jacobianAtPoint(ompl::base::CollisionInfo info, int which);
+
+    bool extraCollisionInformation(std::vector<double> configuration,
+                                   std::vector<ompl::base::CollisionInfo>& collisionStructs);
     
-
+private:
+    trajopt::Configuration* rad_;
+    trajopt::CollisionCheckerPtr coll_check_;
+    std::map<const std::string, int> link2index_;
+    std::vector<OpenRAVE::KinBody::LinkPtr> links_;
 };
 
 class OMPLPlanner: public OpenRAVE::PlannerBase {
@@ -90,10 +111,12 @@ private:
     OpenRAVE::RobotBasePtr m_robot;
     OpenRAVE::CollisionReportPtr m_collisionReport;
     double m_totalPlanningTime;
+    std::shared_ptr<TrajOptWrapper> m_wrapper;
 
     ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
 
     bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
+
 };
 
 typedef boost::shared_ptr<OMPLPlanner> OMPLPlannerPtr;

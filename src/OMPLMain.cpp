@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/function.hpp>
 #include <boost/make_shared.hpp>
@@ -64,7 +63,7 @@ InterfaceBasePtr CreateInterfaceValidated(
 
         // Check whether this is an automatically-wrapped planner.
         std::string const ompl_planner_name = interfacename.substr(5);
-        BOOST_FOREACH (std::string const &candidate_name, planner_names) {
+        for (std::string const &candidate_name : planner_names) {
             std::string candidate_name_lower = candidate_name;
             boost::algorithm::to_lower(candidate_name_lower);
 
@@ -82,7 +81,7 @@ void GetPluginAttributesValidated(PLUGININFO &info) {
     std::vector<std::string> const planner_names
         = or_ompl::registry::get_planner_names();
 
-    BOOST_FOREACH (std::string const &planner_name, planner_names) {
+    for (std::string const &planner_name : planner_names) {
         std::string const or_planner_name = "OMPL_" + planner_name;
         info.interfacenames[PT_Planner].push_back(or_planner_name);
     }

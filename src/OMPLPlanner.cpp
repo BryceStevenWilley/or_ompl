@@ -330,6 +330,9 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             double safety_distance = 0.3;
             bare_bones->addObjective(std::make_shared<ompl::base::ObstacleConstraint>(si, safety_distance, collisions, jacobian)); 
             m_simple_setup->setOptimizationObjective(bare_bones);
+            m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback([this](ompl::sco::OptProb *prob, std::vector<double>& x) {
+                // TODO: pause, and execute in openrave. Copy code from python visualize_envs.
+            }); 
         }
         else
         {

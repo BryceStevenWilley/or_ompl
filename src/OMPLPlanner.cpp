@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/objectives/CollisionEvaluator.h>
 #include <ompl/base/objectives/ObstacleConstraint.h>
 #include <ompl/base/objectives/JointDistanceObjective.h>
+#include <ompl/geometric/planners/trajopt/TrajOpt.h>
+#include <ompl/trajopt/modeling.h>
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
@@ -236,29 +238,29 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         RAVELOG_DEBUG("Setting goal configuration.\n");
         std::vector<TSRChain::Ptr> goal_chains;
         BOOST_FOREACH(TSRChain::Ptr tsr_chain, m_parameters->m_tsrchains){
-            if(tsr_chain->sampleGoal()){
+            if (tsr_chain->sampleGoal()){
                 tsr_chain->setEnv(robot->GetEnv()); // required to enable distance to TSR chains
                 goal_chains.push_back(tsr_chain);
-            }else{
+            } else {
                 RAVELOG_ERROR("Only goal TSR chains are supported by OMPL. Failing.\n");
                 return false;
             }
         }
 
-        if(goal_chains.size() > 0 && m_parameters->vgoalconfig.size() > 0){
+        if (goal_chains.size() > 0 && m_parameters->vgoalconfig.size() > 0){
             RAVELOG_ERROR("A goal TSR chain has been supplied and a goal configuration"
                           " has been specified. The desired behavior is ambiguous."
                           " Please specified one or the other.\n");
             return false;
         }
 
-        if(goal_chains.size() > 0) {
+        if (goal_chains.size() > 0) {
             TSRGoal::Ptr goaltsr(new TSRGoal(m_simple_setup->getSpaceInformation(),
                                              goal_chains,
                                              robot,
                                              m_or_validity_checker));
             m_simple_setup->setGoal(goaltsr);
-        }else{
+        } else {
             if (m_parameters->vgoalconfig.size() % num_dof != 0) {
                 RAVELOG_ERROR("End configuration has incorrect DOF;"
                               "  expected multiple of %d, got %d.\n",
@@ -270,18 +272,18 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
                 RAVELOG_ERROR("No goal configurations provided.\n");
                 return false;
             }
-            
+
             if (num_goals == 1) {
                 ScopedState q_goal(m_state_space);
                 for (size_t i = 0; i < num_dof; i++) {
                     q_goal[i] = m_parameters->vgoalconfig[i];
                 }
-                
+
                 if (!m_or_validity_checker->isValid(q_goal.get())) {
                     RAVELOG_ERROR("Single goal configuration is in collision.\n");
                     return false;
                 }
-                
+
                 m_simple_setup->setGoalState(q_goal);
             } else {
                 // if multiple possible goals specified,
@@ -313,12 +315,13 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         {
             RAVELOG_DEBUG("Created a TrajOpt planner, adding the convex cost.");
             const ompl::base::SpaceInformationPtr &si = m_simple_setup->getSpaceInformation();
-            ompl::base::MultiConvexifiableOptimizationPtr bare_bones = std::make_shared<ompl::base::MultiConvexifiableOptimization>(si);
+            auto bare_bones = std::make_shared<ompl::base::MultiConvexifiableOptimization>(si);
             bare_bones->addObjective(std::make_shared<ompl::base::JointDistanceObjective>(si));
             
-            // Obstacle Objective: Make a jacobian getting and a Collision Info getter base on TrajOpt.
+            // Obstacle Objective: Make a jacobian and a Collision Info getter base on TrajOpt.
             trajopt::Configuration *rad = new trajopt::RobotAndDOF(m_robot, robot->GetActiveDOFIndices());
-            trajopt::CollisionCheckerPtr coll_check = trajopt::CollisionChecker::GetOrCreate(*m_robot->GetEnv());
+            trajopt::CollisionCheckerPtr coll_check = 
+                    trajopt::CollisionChecker::GetOrCreate(*m_robot->GetEnv());
             m_wrapper = std::make_shared<TrajOptWrapper>(rad, coll_check); 
             ompl::base::JacobianFn jacobian = [this](ompl::base::CollisionInfo collisionStruct, int which) {
                 return this->m_wrapper->jacobianAtPoint(collisionStruct, which);
@@ -327,11 +330,25 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
                                                                  std::vector<ompl::base::CollisionInfo>& collisionStructs) {
                 return this->m_wrapper->extraCollisionInformation(configuration, collisionStructs); 
             };
-            double safety_distance = 0.3;
+            double safety_distance = 0.025;
             bare_bones->addObjective(std::make_shared<ompl::base::ObstacleConstraint>(si, safety_distance, collisions, jacobian)); 
             m_simple_setup->setOptimizationObjective(bare_bones);
-            m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback([this](ompl::sco::OptProb *prob, std::vector<double>& x) {
-                // TODO: pause, and execute in openrave. Copy code from python visualize_envs.
+            m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback([this](sco::OptProb *prob, std::vector<double>& x) {
+                int dof = m_simple_setup->getStateSpace()->getDimension();
+                int timesteps = x.size() / dof;
+                fprintf(stderr, "DOF: %d, timesteps: %d\n", dof, timesteps);
+                //OpenRAVE::TrajectoryBasePtr or_traj = RaveCreateTrajectory(m_robot->GetEnv(), "");
+                //or_traj->Init(m_robot->GetActiveConfigurationSpecification("linear"));
+                for (size_t i = 0; i < timesteps; i++)
+                { 
+                    std::vector<double> values;
+                    values.insert(values.end(), x.begin() + i * dof, x.begin() + (i + 1) * dof);
+                    //m_robot->SetActiveDOFValues(values);
+                    //usleep(50000);
+                    //or_traj->Insert(i, values, true);
+                }
+                //OpenRAVE::planningutils::SmoothActiveDOFTrajectory(or_traj, m_robot);
+                //this->m_robot->GetController()->SetPath(or_traj);
             }); 
         }
         else

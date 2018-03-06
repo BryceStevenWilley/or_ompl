@@ -32,29 +32,57 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
 
-#ifndef OR_OMPL_OMPLPLANNER_H_
-#define OR_OMPL_OMPLPLANNER_H_
+#ifndef OR_OMPL_OMPLOPTSIMPLIFIER_H_
+#define OR_OMPL_OMPLOPTSIMPLIFIER_H_
 
 #include <openrave-core.h>
 #include <openrave/planner.h>
 #include <openrave/planningutils.h>
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/base/objectives/CollisionEvaluator.h>
+#include <ompl/base/objectives/ObstacleConstraint.h>
+#include <ompl/base/objectives/JointDistanceObjective.h>
+#include <ompl/trajopt/modeling.h>
 
 #include <or_ompl/StateSpaces.h>
 #include <or_ompl/OMPLPlannerParameters.h>
 #include <or_ompl/TrajOpt/configuration_space.hpp>
 #include <or_ompl/TrajOpt/collision_checker.hpp>
+#include <or_ompl/OMPLPlanner.h>
 
 namespace or_ompl {
 
-typedef boost::function<ompl::base::Planner *(ompl::base::SpaceInformationPtr)> PlannerFactory;
-
-class OMPLPlanner: public OpenRAVE::PlannerBase {
+class TrajOptWrapper {
 public:
-    OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
-                PlannerFactory const &planner_factory);
-    virtual ~OMPLPlanner();
+    TrajOptWrapper(trajopt::Configuration *rad, trajopt::CollisionCheckerPtr coll_check) :
+        rad_(rad), coll_check_(coll_check)
+    {
+        // Map the active link to its index in the robot.
+        std::vector<int> indices;
+        rad_->GetAffectedLinks(links_, true, indices);
+        for (int i = 0; i < links_.size(); i++)
+        {
+            link2index_[links_[i]->GetName()] = indices[i];
+        }
+    }
+
+    Eigen::MatrixXd jacobianAtPoint(ompl::base::CollisionInfo info, int which);
+
+    bool extraCollisionInformation(std::vector<double> configuration,
+                                   std::vector<ompl::base::CollisionInfo>& collisionStructs);
+
+private:
+    trajopt::Configuration* rad_;
+    trajopt::CollisionCheckerPtr coll_check_;
+    std::map<const std::string, int> link2index_;
+    std::vector<OpenRAVE::KinBody::LinkPtr> links_;
+};
+
+class OMPLOptSimplifier: public OpenRAVE::PlannerBase {
+public:
+    OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
+                      PlannerFactory const &simplifier_factory);
+    virtual ~OMPLOptSimplifier();
 
     virtual bool InitPlan(OpenRAVE::RobotBasePtr robot,
                           PlannerParametersConstPtr params);
@@ -69,14 +97,9 @@ public:
     bool GetTimes(std::ostream & sout, std::istream & sin) const;
     bool GetParameterValCommand(std::ostream &sout, std::istream &sin) const;
 
-protected:
-    const ompl::base::PlannerPtr & get_planner() {
-        return m_planner;
-    }
-
 private:
     bool m_initialized;
-    PlannerFactory m_planner_factory;
+    PlannerFactory m_simplifier_factory;
     OMPLPlannerParametersPtr m_parameters;
     ompl::geometric::SimpleSetupPtr m_simple_setup;
     ompl::base::StateSpacePtr m_state_space;
@@ -85,15 +108,15 @@ private:
     OpenRAVE::RobotBasePtr m_robot;
     OpenRAVE::CollisionReportPtr m_collisionReport;
     double m_totalPlanningTime;
+    std::shared_ptr<TrajOptWrapper> m_wrapper;
 
     ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
 
     bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
-
 };
 
-typedef boost::shared_ptr<OMPLPlanner> OMPLPlannerPtr;
+typedef boost::shared_ptr<OMPLOptSimplifier> OMPLOptSimplifierPtr;
 
 } // namespace or_ompl
 
-#endif // OR_OMPL_OMPLPLANNER_H_
+#endif // OR_OMPL_OMPLOPTSIMPLIFIER_H_

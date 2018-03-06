@@ -228,4 +228,24 @@ OpenRAVE::PlannerStatus ToORTrajectory(
     return OpenRAVE::PS_HasSolution;
 }
 
+void FromORTrajectory(
+        OpenRAVE::RobotBasePtr const &robot,
+        OpenRAVE::TrajectoryBasePtr or_traj,
+        ompl::geometric::PathGeometric& ompl_traj)
+{
+    ompl::base::SpaceInformationPtr si = ompl_traj.getSpaceInformation();
+    ompl::base::StateSpacePtr space = si->getStateSpace();
+    auto cspec = robot->GetActiveConfigurationSpecification();
+    for (size_t iwaypoint = 0; iwaypoint < or_traj->GetNumWaypoints(); ++iwaypoint)
+    {
+        std::vector<double> waypoint_openrave;
+        robot->GetActiveDOFValues(waypoint_openrave);
+        or_traj->GetWaypoint(iwaypoint, waypoint_openrave, cspec);
+
+        ompl::base::State* waypoint_ompl = si->allocState();
+        space->copyFromReals(waypoint_ompl, waypoint_openrave);
+        ompl_traj.append(waypoint_ompl);
+    }
+}
+
 } // namespace or_ompl

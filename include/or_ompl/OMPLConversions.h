@@ -59,6 +59,10 @@ OpenRAVE::PlannerStatus ToORTrajectory(OpenRAVE::RobotBasePtr const &robot,
                                        ompl::geometric::PathGeometric &ompl_traj,
                                        OpenRAVE::TrajectoryBasePtr or_traj);
 
+void FromORTrajectory(OpenRAVE::RobotBasePtr const &robot,
+                      OpenRAVE::TrajectoryBasePtr or_traj,
+                      ompl::geometric::PathGeometric &ompl_traj);
+
 } // namespace or_ompl
 
 #endif // OR_OMPL_OMPLCONVERSIONS_H_

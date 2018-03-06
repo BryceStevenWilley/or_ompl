@@ -92,7 +92,7 @@ bool OMPLSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
         m_space_info->setStateValidityChecker(
             std::static_pointer_cast<ompl::base::StateValidityChecker>(m_or_validity_checker));
 #endif
-        
+
         m_space_info->setup();
         m_simplifier.reset(new PathSimplifier(m_space_info));
         return true;
@@ -163,7 +163,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
 
     RAVELOG_DEBUG("Running path simplification for %f seconds.\n",
                   m_parameters->m_timeLimit);
-    
+
     // start validity checker
     m_or_validity_checker->start();
     BOOST_SCOPE_EXIT((m_or_validity_checker)) {

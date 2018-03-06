@@ -52,7 +52,7 @@ configure_file(
 catkin_package(
     INCLUDE_DIRS include ${CATKIN_DEVEL_PREFIX}/include
     LIBRARIES ${PROJECT_NAME}
-    DEPENDS Boost Eigen3 OMPL OpenRAVE
+    DEPENDS Boost EIGEN3 OMPL OpenRAVE
 )
 
 if(NOT OR_OMPL_HAS_BOOSTSMARTPTRS)
@@ -93,6 +93,16 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/PlannerRegistry.cpp"
             --include-dirs="${OMPL_INCLUDE_DIRS}"
             --planners-yaml="${PROJECT_SOURCE_DIR}/planners.yaml"
             --generated-cpp="${CMAKE_CURRENT_BINARY_DIR}/src/PlannerRegistry.cpp"
+            --output-type="Planner"
+)
+
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/SimplifierRegistry.cpp"
+    MAIN_DEPENDENCY "${PROJECT_SOURCE_DIR}/scripts/wrap_planners.py"
+    COMMAND "${PROJECT_SOURCE_DIR}/scripts/wrap_planners.py"
+            --include-dirs="${OMPL_INCLUDE_DIRS}"
+            --planners-yaml="${PROJECT_SOURCE_DIR}/simplifiers.yaml"
+            --generated-cpp="${CMAKE_CURRENT_BINARY_DIR}/src/SimplifierRegistry.cpp"
+            --output-type="Simplifier"
 )
 
 # Helper library.
@@ -100,6 +110,7 @@ add_library(${PROJECT_NAME}
     src/OMPLConversions.cpp
     src/OMPLPlanner.cpp
     src/OMPLSimplifier.cpp
+    src/OMPLOptSimplifier.cpp
     src/OMPLNothing.cpp
     src/SemiToroidalStateSpace.cpp
     src/StateSpaces.cpp
@@ -113,6 +124,7 @@ add_library(${PROJECT_NAME}
     src/TrajOpt/bullet_unity.cpp
     src/TrajOpt/bullet_collision_checker.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/src/PlannerRegistry.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/SimplifierRegistry.cpp"
 )
 target_link_libraries(${PROJECT_NAME}
     ${Boost_LIBRARIES}

@@ -47,47 +47,107 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/objectives/ObstacleConstraint.h>
 #include <ompl/base/objectives/JointDistanceObjective.h>
 #include <ompl/geometric/planners/trajopt/TrajOpt.h>
+#include <ompl/trajopt/modeling.h>
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
 #include <or_ompl/OMPLPlanner.h>
 #include <or_ompl/TSRGoal.h>
-#include <or_ompl/PlannerRegistry.h>
+#include <or_ompl/SimplifierRegistry.h>
+#include <or_ompl/OMPLOptSimplifier.h>
 
 namespace or_ompl {
 
-OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
-                         PlannerFactory const &planner_factory)
+Eigen::MatrixXd TrajOptWrapper::jacobianAtPoint(ompl::base::CollisionInfo info, int which)
+{
+    rad_->SetDOFValues(info.x);
+    std::string link_name = info.link_names[which];
+    OpenRAVE::Vector stupid_vector(info.points[which].x(), info.points[which].y(), info.points[which].z());
+    return rad_->PositionJacobian(link2index_[link_name], stupid_vector);
+}
+
+bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration, 
+                                          std::vector<ompl::base::CollisionInfo>& collisionStructs)
+{
+    // TODO: worry about collision caching later.
+    rad_->SetDOFValues(configuration);
+    std::vector<trajopt::Collision> collisions;
+    coll_check_->LinksVsAll(links_ , collisions, -1);
+    for (auto coll : collisions)
+    {
+        ompl::base::CollisionInfo collisionStruct;
+        collisionStruct.x = configuration;
+
+        Eigen::Vector3d ptA(coll.ptA.x, coll.ptA.y, coll.ptA.z);   
+        Eigen::Vector3d ptB(coll.ptB.x, coll.ptB.y, coll.ptB.z);   
+        Eigen::Vector3d normal(coll.normalB2A.x, coll.normalB2A.y, coll.normalB2A.z);
+ 
+        auto itA = link2index_.find(coll.linkA->GetName());
+        auto itB = link2index_.find(coll.linkB->GetName());
+        collisionStruct.signedDist = coll.distance; 
+        // If both exist, it's a self collision.
+        if (itA != link2index_.end() && itB != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptA);                
+            collisionStruct.points.push_back(ptB);
+            collisionStruct.link_names.push_back(coll.linkA->GetName());
+            collisionStruct.link_names.push_back(coll.linkB->GetName());
+            collisionStruct.normal = normal;
+        }
+        // Otherwise, only link is in collision with the env.
+        else if (itA != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptA);
+            collisionStruct.link_names.push_back(coll.linkA->GetName());
+            collisionStruct.normal = normal;
+        }
+        else if (itB != link2index_.end())
+        {
+            collisionStruct.points.push_back(ptB); 
+            collisionStruct.link_names.push_back(coll.linkB->GetName());
+            collisionStruct.normal = -normal;
+        }
+        // Otherwise, two world objects must be in collision with one another.
+        else
+        {
+            continue;
+        }
+        collisionStructs.push_back(collisionStruct);
+    }
+    return collisionStructs.size() > 0;
+}
+
+OMPLOptSimplifier::OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
+                         PlannerFactory const &simplifier_factory)
     : OpenRAVE::PlannerBase(penv)
     , m_initialized(false)
-    , m_planner_factory(planner_factory) {
+    , m_simplifier_factory(simplifier_factory) {
 
     RegisterCommand("GetParameters",
-        boost::bind(&OMPLPlanner::GetParametersCommand, this, _1, _2),
+        boost::bind(&OMPLOptSimplifier::GetParametersCommand, this, _1, _2),
         "returns the list of accepted planner parameters"
     );
 
     RegisterCommand("GetParameterValue",
-        boost::bind(&OMPLPlanner::GetParameterValCommand, this, _1, _2),
+        boost::bind(&OMPLOptSimplifier::GetParameterValCommand, this, _1, _2),
         "returns the value of a specific parameter"
     );
 
     RegisterCommand("GetTimes",
-        boost::bind(&OMPLPlanner::GetTimes,this,_1,_2),
+        boost::bind(&OMPLOptSimplifier::GetTimes,this,_1,_2),
         "get timing information from last plan");
-
 }
 
-OMPLPlanner::~OMPLPlanner() {
+OMPLOptSimplifier::~OMPLOptSimplifier() {
 }
 
-bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input) {
+bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input) {
     OMPLPlannerParametersPtr params = boost::make_shared<OMPLPlannerParameters>();
     input >> *params;
     return InitPlan(robot, params);
 }
 
-bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
+bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
                            PlannerParametersConstPtr params_raw) {
     m_initialized = false;
 
@@ -251,6 +311,51 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         }
         m_simple_setup->setPlanner(m_planner);
 
+        if (m_planner->getName() == "TrajOpt")
+        {
+            RAVELOG_DEBUG("Created a TrajOpt planner, adding the convex cost.");
+            const ompl::base::SpaceInformationPtr &si = m_simple_setup->getSpaceInformation();
+            auto bare_bones = std::make_shared<ompl::base::MultiConvexifiableOptimization>(si);
+            bare_bones->addObjective(std::make_shared<ompl::base::JointDistanceObjective>(si));
+
+            // Obstacle Objective: Make a jacobian and a Collision Info getter base on TrajOpt.
+            trajopt::Configuration *rad = new trajopt::RobotAndDOF(m_robot, robot->GetActiveDOFIndices());
+            trajopt::CollisionCheckerPtr coll_check =
+                    trajopt::CollisionChecker::GetOrCreate(*m_robot->GetEnv());
+            m_wrapper = std::make_shared<TrajOptWrapper>(rad, coll_check);
+            ompl::base::JacobianFn jacobian = [this](ompl::base::CollisionInfo collisionStruct, int which) {
+                return this->m_wrapper->jacobianAtPoint(collisionStruct, which);
+            };
+            ompl::base::WorkspaceCollisionFn collisions = [this](std::vector<double> configuration,
+                                                                 std::vector<ompl::base::CollisionInfo>& collisionStructs) {
+                return this->m_wrapper->extraCollisionInformation(configuration, collisionStructs);
+            };
+            double safety_distance = 0.025;
+            bare_bones->addObjective(std::make_shared<ompl::base::ObstacleConstraint>(si, safety_distance, collisions, jacobian));
+            m_simple_setup->setOptimizationObjective(bare_bones);
+            /*m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback([this](sco::OptProb *prob, std::vector<double>& x) {
+                int dof = m_simple_setup->getStateSpace()->getDimension();
+                int timesteps = x.size() / dof;
+                fprintf(stderr, "DOF: %d, timesteps: %d\n", dof, timesteps);
+                //OpenRAVE::TrajectoryBasePtr or_traj = RaveCreateTrajectory(m_robot->GetEnv(), "");
+                //or_traj->Init(m_robot->GetActiveConfigurationSpecification("linear"));
+                for (size_t i = 0; i < timesteps; i++)
+                {
+                    std::vector<double> values;
+                    values.insert(values.end(), x.begin() + i * dof, x.begin() + (i + 1) * dof);
+                    //m_robot->SetActiveDOFValues(values);
+                    //usleep(50000);
+                    //or_traj->Insert(i, values, true);
+                }
+                //OpenRAVE::planningutils::SmoothActiveDOFTrajectory(or_traj, m_robot);
+                //this->m_robot->GetController()->SetPath(or_traj);
+            });*/
+        }
+        else
+        {
+            RAVELOG_DEBUG("Did not create a TrajOpt planner.");
+        }
+
         m_initialized = true;
         return true;
     } catch (std::runtime_error const &e) {
@@ -259,13 +364,13 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
     }
 }
 
-ompl::base::PlannerPtr OMPLPlanner::CreatePlanner(
+ompl::base::PlannerPtr OMPLOptSimplifier::CreatePlanner(
     OMPLPlannerParameters const &params) {
     // Create the planner.
     ompl::base::SpaceInformationPtr const spaceInformation
             = m_simple_setup->getSpaceInformation();
 
-    ompl::base::PlannerPtr planner(m_planner_factory(spaceInformation));
+    ompl::base::PlannerPtr planner(m_simplifier_factory(spaceInformation));
     if (!planner) {
         RAVELOG_ERROR("Failed creating planner.");
         return ompl::base::PlannerPtr();
@@ -341,10 +446,18 @@ ompl::base::PlannerPtr OMPLPlanner::CreatePlanner(
     return planner;
 }
 
-OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
-    if (!m_initialized) {
+OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
+    if (!m_initialized)
+    {
         RAVELOG_ERROR("Unable to plan. Did you call InitPlan?\n");
         return OpenRAVE::PS_Failed;
+    }
+    else if (ptraj && ptraj->GetNumWaypoints() != 0)
+    {
+        // Start off with existing path found by something else.
+        ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
+        FromORTrajectory(m_robot, ptraj, path);
+        m_planner->as<ompl::geometric::TrajOpt>()->setInitialTrajectory(path);
     }
 
     boost::chrono::steady_clock::time_point const tic
@@ -409,7 +522,7 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
     return planner_status;
 }
 
-bool OMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
+bool OMPLOptSimplifier::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
     typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
 
     ompl::base::PlannerPtr planner;
@@ -425,7 +538,7 @@ bool OMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) co
             new ompl::base::RealVectorStateSpace(1));
         ompl::base::SpaceInformationPtr const space_information(
             new ompl::base::SpaceInformation(state_space));
-        planner.reset(m_planner_factory(space_information));
+        planner.reset(m_simplifier_factory(space_information));
     }
 
     // Query the supported parameters. Each planner has a name and a "range
@@ -441,7 +554,7 @@ bool OMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) co
     return true;
 }
 
-bool OMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) const {
+bool OMPLOptSimplifier::GetParameterValCommand(std::ostream &sout, std::istream &sin) const {
     typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
     //Obtain argument from input stream
     std::string inp_arg;
@@ -460,7 +573,7 @@ bool OMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) 
             new ompl::base::RealVectorStateSpace(1));
         ompl::base::SpaceInformationPtr const space_information(
             new ompl::base::SpaceInformation(state_space));
-        planner.reset(m_planner_factory(space_information));
+        planner.reset(m_simplifier_factory(space_information));
     }
 
     // Query the supported parameters. Each planner has a name and a "range
@@ -484,7 +597,7 @@ bool OMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) 
 }
 
 
-bool OMPLPlanner::GetTimes(std::ostream & sout, std::istream & sin) const {
+bool OMPLOptSimplifier::GetTimes(std::ostream & sout, std::istream & sin) const {
     if (!m_or_validity_checker)
     {
         RAVELOG_ERROR("GetTimes cannot be called before a plan has been initialized!\n");

@@ -40,55 +40,81 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <or_ompl/OMPLPlanner.h>
 #include <or_ompl/OMPLConversions.h>
 #include <or_ompl/OMPLSimplifer.h>
+#include <or_ompl/OMPLOptSimplifier.h>
 #include <or_ompl/OMPLNothing.h>
 #include <or_ompl/PlannerRegistry.h>
+#include <or_ompl/SimplifierRegistry.h>
 
 using namespace OpenRAVE;
 
 InterfaceBasePtr CreateInterfaceValidated(
         InterfaceType type, std::string const &interfacename,
         std::istream &sinput, EnvironmentBasePtr penv) {
+
     std::vector<std::string> const planner_names
-        = or_ompl::registry::get_planner_names();
+        = or_ompl::registry::getPlannerNames();
+
+    std::vector<std::string> const simplifier_names = or_ompl::registry::getSimplifierNames();
+    RAVELOG_WARN("%d simplifiers", simplifier_names.size());
 
     if (type == PT_Planner && boost::starts_with(interfacename, "ompl_")) {
         // Handle OMPLSimplifier as a special case. This doesn't implement the
         // planning interface, so we can't auto-generate this.
         if (interfacename == "ompl_simplifier") {
             return boost::make_shared<or_ompl::OMPLSimplifier>(penv);
-        } 
+        }
         if (interfacename == "ompl_nothing") {
             return boost::make_shared<or_ompl::OMPLNothing>(penv);
         }
 
-        // Check whether this is an automatically-wrapped planner.
+        // Check for automatically-wrapped optimizer (simplifier in the current terms).
         std::string const ompl_planner_name = interfacename.substr(5);
+        RAVELOG_WARN("%s", ompl_planner_name.c_str()); 
+        for (std::string const &candidate_name : simplifier_names)
+        {
+            std::string candidate_name_lower = candidate_name;
+            boost::algorithm::to_lower(candidate_name_lower);
+            RAVELOG_WARN("%s", candidate_name_lower.c_str());
+            if (candidate_name_lower == ompl_planner_name) {
+                or_ompl::PlannerFactory const factory = boost::bind(
+                    &or_ompl::registry::createSimplifier, candidate_name, _1);
+                return boost::make_shared<or_ompl::OMPLOptSimplifier>(penv, factory);
+            }
+        }
+
+        // Check whether this is an automatically-wrapped planner.
         for (std::string const &candidate_name : planner_names) {
             std::string candidate_name_lower = candidate_name;
             boost::algorithm::to_lower(candidate_name_lower);
 
             if (candidate_name_lower == ompl_planner_name) {
                 or_ompl::PlannerFactory const factory = boost::bind(
-                    &or_ompl::registry::create, candidate_name, _1);
+                    &or_ompl::registry::createPlanner, candidate_name, _1);
                 return boost::make_shared<or_ompl::OMPLPlanner>(penv, factory);
             }
         }
+
     }
     return InterfaceBasePtr();
 }
 
 void GetPluginAttributesValidated(PLUGININFO &info) {
     std::vector<std::string> const planner_names
-        = or_ompl::registry::get_planner_names();
+        = or_ompl::registry::getPlannerNames();
 
     for (std::string const &planner_name : planner_names) {
         std::string const or_planner_name = "OMPL_" + planner_name;
         info.interfacenames[PT_Planner].push_back(or_planner_name);
     }
+   
+    std::vector<std::string> const simplifier_names = or_ompl::registry::getSimplifierNames();
+    for (std::string const &sim_name : simplifier_names) {
+        std::string const or_simplifier_name = "OMPL_" + sim_name;
+        info.interfacenames[PT_Planner].push_back(or_simplifier_name);
+    }
 
     info.interfacenames[PT_Planner].push_back("OMPL_Simplifier");
     info.interfacenames[PT_Planner].push_back("OMPL_Nothing");
-    
 
     // Forward OMPL log messages to OpenRAVE.
     ompl::msg::setLogLevel(ompl::msg::LOG_DEBUG);

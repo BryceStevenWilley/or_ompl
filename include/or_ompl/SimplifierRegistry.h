@@ -30,8 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
 
-#ifndef OR_OMPL_PLANNERREGISTRY_H_
-#define OR_OMPL_PLANNERREGISTRY_H_
+#ifndef OR_OMPL_SIMPLIFIERREGISTRY_H_
+#define OR_OMPL_SIMPLIFIERREGISTRY_H_
 
 #include <string>
 #include <vector>
@@ -41,12 +41,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace or_ompl {
 namespace registry {
 
-std::vector<std::string> getPlannerNames();
+std::vector<std::string> getSimplifierNames();
 
-ompl::base::Planner *createPlanner(std::string const &name,
+ompl::base::Planner *createSimplifier(std::string const &name,
                             ompl::base::SpaceInformationPtr space);
 
 } // namespace registry
 } // namespace or_ompl
 
-#endif // OR_OMPL_PLANNERREGISTRY_H_
+#endif // OR_OMPL_SIMPLIFIERREGISTRY_H_

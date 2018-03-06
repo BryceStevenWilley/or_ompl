@@ -96,7 +96,7 @@ bool OMPLNothing::InitPlan(OpenRAVE::RobotBasePtr robot,
         m_space_info->setStateValidityChecker(
             std::static_pointer_cast<ompl::base::StateValidityChecker>(m_or_validity_checker));
 #endif
-        
+
         m_space_info->setup();
         m_simplifier.reset(new PathSimplifier(m_space_info));
         return true;
@@ -162,14 +162,6 @@ OpenRAVE::PlannerStatus OMPLNothing::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         length_before,
         smoothness_before
     );
-
-    // Store the result in the OpenRAVE trajectory.
-    //RAVELOG_DEBUG("Reconstructing OpenRAVE trajectory with %d waypoints.\n",
-    //              path.getStateCount());
-    //BOOST_ASSERT(ptraj);
-    //ptraj->Remove(0, ptraj->GetNumWaypoints());
-
-    //ToORTrajectory(m_robot, path, ptraj);
 
     return PS_HasSolution;
 }

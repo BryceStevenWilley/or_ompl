@@ -44,7 +44,7 @@ namespace or_ompl {
 class OMPLNothing : public OpenRAVE::PlannerBase {
 public:
     OMPLNothing(OpenRAVE::EnvironmentBasePtr penv);
-    virtual ~OMPLNothing(); 
+    virtual ~OMPLNothing();
     virtual bool InitPlan(OpenRAVE::RobotBasePtr robot,
                           PlannerParametersConstPtr params);
     virtual bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input);
@@ -52,7 +52,7 @@ public:
     virtual OpenRAVE::PlannerStatus  PlanPath(OpenRAVE::TrajectoryBasePtr ptraj);
 
     virtual PlannerParametersConstPtr GetParameters() const { return m_parameters; }
-    
+
 private:
     OpenRAVE::RobotBasePtr m_robot;
     OMPLPlannerParametersPtr m_parameters;

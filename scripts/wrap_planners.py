@@ -36,22 +36,22 @@ factory_frontmatter = """\
 #include <string>
 #include <boost/assign/list_of.hpp>
 {includes:s}
-#include <or_ompl/PlannerRegistry.h>
+#include <or_ompl/{output_type:s}Registry.h>
 
 namespace or_ompl {{
 namespace registry {{
 
-struct BasePlannerFactory {{
-    virtual ~BasePlannerFactory() {{ }}
+struct Base{output_type:s}Factory {{
+    virtual ~Base{output_type:s}Factory() {{ }}
     virtual ompl::base::Planner *create(ompl::base::SpaceInformationPtr space) = 0;
 }};
 
 /*
- * Planner Factories
+ * {output_type:s} Factories
  */
 """
 factory_template = """\
-struct {name:s}Factory : public virtual BasePlannerFactory {{
+struct {name:s}Factory : public virtual Base{output_type:s}Factory {{
     virtual ompl::base::Planner *create(ompl::base::SpaceInformationPtr space)
     {{
         return new {qualified_name:s}(space);
@@ -61,44 +61,44 @@ struct {name:s}Factory : public virtual BasePlannerFactory {{
 
 registry_frontmatter = """
 /*
- * Planner Registry
+ * {output_type:s} Registry
  */
-typedef std::map<std::string, BasePlannerFactory *> PlannerRegistry;
+typedef std::map<std::string, Base{output_type:s}Factory *> {output_type:s}Registry;
 
 // The dynamic_cast is necessary to work around a type inference bug when
 // using map_list_of on a polymorphic type.
-static PlannerRegistry registry = boost::assign::map_list_of
+static {output_type:s}Registry registry{output_type:s} = boost::assign::map_list_of
 """
-registry_entry = '    ("{name:s}", dynamic_cast<BasePlannerFactory *>(new {name:s}Factory))'
+registry_entry = '    ("{name:s}", dynamic_cast<Base{output_type:s}Factory *>(new {name:s}Factory))'
 registry_backmatter = """\
 ;
 
-std::vector<std::string> get_planner_names()
-{
+std::vector<std::string> get{output_type:s}Names()
+{{
     std::vector<std::string> names;
-    names.reserve(registry.size());
+    names.reserve(registry{output_type:s}.size());
 
-    PlannerRegistry::const_iterator it;
-    for (it = registry.begin(); it != registry.end(); ++it) {
+    {output_type:s}Registry::const_iterator it;
+    for (it = registry{output_type:s}.begin(); it != registry{output_type:s}.end(); ++it) {{
         names.push_back(it->first);
-    }
+    }}
 
     return names;
-}
+}}
 
-ompl::base::Planner *create(std::string const &name,
+ompl::base::Planner *create{output_type:s}(std::string const &name,
                             ompl::base::SpaceInformationPtr space)
-{
-    PlannerRegistry::const_iterator const it = registry.find(name);
-    if (it != registry.end()) {
+{{
+    {output_type:s}Registry::const_iterator const it = registry{output_type:s}.find(name);
+    if (it != registry{output_type:s}.end()) {{
         return it->second->create(space);
-    } else {
-        throw std::runtime_error("Unknown planner '" + name + "'.");
-    }
-}
+    }} else {{
+        throw std::runtime_error("Unknown {output_type:s} '" + name + "'.");
+    }}
+}}
 
-} // namespace registry
-} // namespace or_ompl
+}} // namespace registry
+}} // namespace or_ompl
 """
 
 def parse_version(version):
@@ -118,7 +118,11 @@ def main():
                         help='input filename for planner list')
     parser.add_argument('--generated-cpp', type=str, required=True,
                         help='output filename for generated code')
+    parser.add_argument('--output-type', type=str, required=True,
+                        help='the output format, either for planners or simplifiers')
     args = parser.parse_args()
+
+    output_type = args.output_type
 
     include_dirs = args.include_dirs.split(os.path.pathsep)
 
@@ -145,7 +149,7 @@ def main():
         # Include the necessary OMPL 
         headers = [ planner['header'] for planner in planners ]
         includes = [ '#include <{:s}>'.format(path) for path in headers ]
-        fout.write(factory_frontmatter.format(includes='\n'.join(includes)))
+        fout.write(factory_frontmatter.format(includes='\n'.join(includes), output_type=output_type))
 
         # Generate the factory class implementations.
         names = [ planner['name'] for planner in planners ]
@@ -154,14 +158,15 @@ def main():
         for qualified_name in names:
             _, _, name = qualified_name.rpartition('::')
             args = { 'name': name,
-                     'qualified_name': qualified_name }
+                     'qualified_name': qualified_name,
+                     'output_type': output_type }
             fout.write(factory_template.format(**args))
             registry_entries.append(registry_entry.format(**args))
 
         # Generate the registry of factory classes.
-        fout.write(registry_frontmatter)
+        fout.write(registry_frontmatter.format(output_type=output_type))
         fout.write('\n'.join(registry_entries))
-        fout.write(registry_backmatter)
+        fout.write(registry_backmatter.format(output_type=output_type))
 
 if __name__ == '__main__':
     main()

@@ -81,14 +81,14 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
         Eigen::Vector3d ptA(coll.ptA.x, coll.ptA.y, coll.ptA.z);   
         Eigen::Vector3d ptB(coll.ptB.x, coll.ptB.y, coll.ptB.z);   
         Eigen::Vector3d normal(coll.normalB2A.x, coll.normalB2A.y, coll.normalB2A.z);
- 
+
         auto itA = link2index_.find(coll.linkA->GetName());
         auto itB = link2index_.find(coll.linkB->GetName());
         collisionStruct.signedDist = coll.distance; 
         // If both exist, it's a self collision.
         if (itA != link2index_.end() && itB != link2index_.end())
         {
-            collisionStruct.points.push_back(ptA);                
+            collisionStruct.points.push_back(ptA);
             collisionStruct.points.push_back(ptB);
             collisionStruct.link_names.push_back(coll.linkA->GetName());
             collisionStruct.link_names.push_back(coll.linkB->GetName());
@@ -103,7 +103,7 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
         }
         else if (itB != link2index_.end())
         {
-            collisionStruct.points.push_back(ptB); 
+            collisionStruct.points.push_back(ptB);
             collisionStruct.link_names.push_back(coll.linkB->GetName());
             collisionStruct.normal = -normal;
         }
@@ -179,7 +179,7 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
 
         RAVELOG_DEBUG("Creating OMPL setup.\n");
         m_simple_setup.reset(new ompl::geometric::SimpleSetup(m_state_space));
-        
+
         RAVELOG_DEBUG("Setting state validity checker.\n");
         if (m_state_space->isCompound()) {
             m_or_validity_checker.reset(new OrStateValidityChecker(
@@ -201,7 +201,7 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
         BOOST_SCOPE_EXIT((m_or_validity_checker)) {
             m_or_validity_checker->stop();
         } BOOST_SCOPE_EXIT_END
-        
+
         RAVELOG_DEBUG("Setting initial configuration.\n");
         if (m_parameters->vinitialconfig.size() % num_dof != 0) {
             RAVELOG_ERROR("Start configuration has incorrect DOF;"
@@ -214,7 +214,7 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
             RAVELOG_ERROR("No initial configurations provided.\n");
             return false;
         }
-        
+
         if (num_starts == 1) {
             ScopedState q_start(m_state_space);
             for (size_t i = 0; i < num_dof; i++) {

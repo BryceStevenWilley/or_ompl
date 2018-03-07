@@ -119,7 +119,7 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
 
         RAVELOG_DEBUG("Creating OMPL setup.\n");
         m_simple_setup.reset(new ompl::geometric::SimpleSetup(m_state_space));
-        
+
         RAVELOG_DEBUG("Setting state validity checker.\n");
         if (m_state_space->isCompound()) {
             m_or_validity_checker.reset(new OrStateValidityChecker(
@@ -141,7 +141,7 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         BOOST_SCOPE_EXIT((m_or_validity_checker)) {
             m_or_validity_checker->stop();
         } BOOST_SCOPE_EXIT_END
-        
+
         RAVELOG_DEBUG("Setting initial configuration.\n");
         if (m_parameters->vinitialconfig.size() % num_dof != 0) {
             RAVELOG_ERROR("Start configuration has incorrect DOF;"
@@ -154,7 +154,7 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             RAVELOG_ERROR("No initial configurations provided.\n");
             return false;
         }
-        
+
         if (num_starts == 1) {
             ScopedState q_start(m_state_space);
             for (size_t i = 0; i < num_dof; i++) {

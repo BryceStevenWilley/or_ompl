@@ -343,8 +343,8 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
                 {
                     std::vector<double> values;
                     values.insert(values.end(), x.begin() + i * dof, x.begin() + (i + 1) * dof);
-                    //m_robot->SetActiveDOFValues(values);
-                    //usleep(50000);
+                    m_robot->SetActiveDOFValues(values);
+                    usleep(20000);
                     //or_traj->Insert(i, values, true);
                 }
                 //OpenRAVE::planningutils::SmoothActiveDOFTrajectory(or_traj, m_robot);
@@ -447,6 +447,8 @@ ompl::base::PlannerPtr OMPLOptSimplifier::CreatePlanner(
 }
 
 OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
+    // Needed so TrajOpt can init the problem instance.
+    m_simple_setup->setup();
     if (!m_initialized)
     {
         RAVELOG_ERROR("Unable to plan. Did you call InitPlan?\n");
@@ -454,10 +456,14 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
     }
     else if (ptraj && ptraj->GetNumWaypoints() != 0)
     {
+        RAVELOG_WARN("Using existing path!");
         // Start off with existing path found by something else.
         ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
         FromORTrajectory(m_robot, ptraj, path);
         m_planner->as<ompl::geometric::TrajOpt>()->setInitialTrajectory(path);
+    } else
+    {
+        RAVELOG_WARN("ptraj is not initialized?");
     }
 
     boost::chrono::steady_clock::time_point const tic

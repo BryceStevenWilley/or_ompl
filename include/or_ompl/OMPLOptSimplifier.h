@@ -70,7 +70,9 @@ public:
 
     bool extraCollisionInformation(std::vector<double> configuration,
                                    std::vector<ompl::base::CollisionInfo>& collisionStructs);
-
+                                   
+    bool extraCollisionInformation(std::vector<double> configuration0, std::vector<double> configuration1,
+                                    std::vector<ompl::base::ContinuousCollisionInfo>& collisionStructs);
 private:
     trajopt::Configuration* rad_;
     trajopt::CollisionCheckerPtr coll_check_;
@@ -111,6 +113,8 @@ private:
     std::shared_ptr<TrajOptWrapper> m_wrapper;
 
     ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
+
+    std::map<std::string, std::string> GetParameterVector(OMPLPlannerParameters const &params);
 
     bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
 };

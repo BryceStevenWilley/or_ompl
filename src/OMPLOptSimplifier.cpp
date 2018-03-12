@@ -117,6 +117,13 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
     return collisionStructs.size() > 0;
 }
 
+bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration,
+                                               std::vector<ompl::base::ContinuousCollisionInfo&> collisionStructs)
+{
+    // TODO: worry about collision caching.
+    rad_->SetDOFValues(configuration);
+}
+
 OMPLOptSimplifier::OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
                          PlannerFactory const &simplifier_factory)
     : OpenRAVE::PlannerBase(penv)

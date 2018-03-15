@@ -76,6 +76,10 @@ OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
         boost::bind(&OMPLPlanner::GetTimes,this,_1,_2),
         "get timing information from last plan");
 
+    RegisterCommand("GetCost",
+        boost::bind(&OMPLPlanner::GetCost,this,_1,_2),
+        "get cost information for the given trajectory");
+
 }
 
 OMPLPlanner::~OMPLPlanner() {
@@ -493,6 +497,19 @@ bool OMPLPlanner::GetTimes(std::ostream & sout, std::istream & sin) const {
     sout << "checktime " << m_or_validity_checker->getTotalCollisionTime();
     sout << " totaltime " << m_totalPlanningTime;
     sout << " n_checks " << m_or_validity_checker->getNumCollisionChecks();
+    return true;
+}
+
+bool OMPLPlanner::GetCost(std::ostream & sout, std::istream &sin) const
+{
+    OpenRAVE::TrajectoryBasePtr traj;
+    traj->deserialize(sin);
+    ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
+    FromORTrajectory(m_robot, traj, path);
+    // Now, get the cost of 'path'.
+    auto opt_obj = m_simple_setup->getOptimizationObjective();
+    ompl::base::Cost cost = path.cost(opt_obj); 
+    sout << cost.value();
     return true;
 }
 

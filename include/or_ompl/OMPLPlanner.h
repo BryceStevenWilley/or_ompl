@@ -67,6 +67,7 @@ public:
     }
 
     bool GetTimes(std::ostream & sout, std::istream & sin) const;
+    bool GetCost(std::ostream & sout, std::istream & sin) const;
     bool GetParameterValCommand(std::ostream &sout, std::istream &sin) const;
 
 protected:

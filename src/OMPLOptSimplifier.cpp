@@ -190,6 +190,10 @@ OMPLOptSimplifier::OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
     RegisterCommand("GetTimes",
         boost::bind(&OMPLOptSimplifier::GetTimes,this,_1,_2),
         "get timing information from last plan");
+    
+    RegisterCommand("GetCost",
+        boost::bind(&OMPLOptSimplifier::GetCost,this,_1,_2),
+        "get cost information for the given trajectory");
 }
 
 OMPLOptSimplifier::~OMPLOptSimplifier() {
@@ -414,7 +418,7 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
         }
         else
         {
-            RAVELOG_DEBUG("Did not create a TrajOpt planner.");
+            RAVELOG_DEBUG("Did not reate a TrajOpt planner.");
         }
 
         m_initialized = true;
@@ -679,6 +683,19 @@ bool OMPLOptSimplifier::GetTimes(std::ostream & sout, std::istream & sin) const 
     sout << "checktime " << m_or_validity_checker->getTotalCollisionTime();
     sout << " totaltime " << m_totalPlanningTime;
     sout << " n_checks " << m_or_validity_checker->getNumCollisionChecks();
+    return true;
+}
+
+bool OMPLOptSimplifier::GetCost(std::ostream & sout, std::istream &sin) const
+{
+    OpenRAVE::TrajectoryBasePtr traj;
+    traj->deserialize(sin);
+    ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
+    FromORTrajectory(m_robot, traj, path);
+    // Now, get the cost of 'path'.
+    auto opt_obj = m_simple_setup->getOptimizationObjective();
+    ompl::base::Cost cost = path.cost(opt_obj); 
+    sout << cost.value();
     return true;
 }
 

@@ -61,6 +61,7 @@ private:
     ompl::base::SpaceInformationPtr m_space_info;
     ompl::geometric::PathSimplifierPtr m_simplifier;
     OpenRAVE::ConfigurationSpecification m_cspec;
+    bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
 };
 
 typedef boost::shared_ptr<OMPLSimplifier> OMPLSimplifierPtr;

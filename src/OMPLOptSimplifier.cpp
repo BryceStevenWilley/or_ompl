@@ -46,6 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/objectives/CollisionEvaluator.h>
 #include <ompl/base/objectives/ObstacleConstraint.h>
 #include <ompl/base/objectives/JointDistanceObjective.h>
+#include <ompl/base/objectives/PathLengthOptimizationObjective.h>
 #include <ompl/geometric/planners/trajopt/TrajOpt.h>
 #include <ompl/trajopt/modeling.h>
 
@@ -135,6 +136,7 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
         Eigen::Vector3d normal(coll.normalB2A.x, coll.normalB2A.y, coll.normalB2A.z);
         auto itA = link2index_.find(coll.linkA->GetName());
         auto itB = link2index_.find(coll.linkB->GetName());
+        collisionStruct.signedDist = coll.distance; 
         // If both links exist, it's a self collision.
         if (itA != link2index_.end() && itB != link2index_.end())
         {
@@ -558,7 +560,7 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
         if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION
             || ompl_status == ompl::base::PlannerStatus::APPROXIMATE_SOLUTION) {
 
-            if (m_simple_setup->haveExactSolutionPath()) {
+            if (m_simple_setup->haveSolutionPath()) {
                 ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
                 RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
                 ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
@@ -688,12 +690,19 @@ bool OMPLOptSimplifier::GetTimes(std::ostream & sout, std::istream & sin) const 
 
 bool OMPLOptSimplifier::GetCost(std::ostream & sout, std::istream &sin) const
 {
-    OpenRAVE::TrajectoryBasePtr traj;
+    OpenRAVE::TrajectoryBasePtr traj = RaveCreateTrajectory(m_robot->GetEnv());
     traj->deserialize(sin);
     ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
     FromORTrajectory(m_robot, traj, path);
     // Now, get the cost of 'path'.
-    auto opt_obj = m_simple_setup->getOptimizationObjective();
+    ompl::base::OptimizationObjectivePtr opt_obj = m_simple_setup->getOptimizationObjective();
+    if (opt_obj == nullptr)
+    {
+        opt_obj = std::make_shared<ompl::base::PathLengthOptimizationObjective>(m_simple_setup->getSpaceInformation());
+        // Still not there? Return false.
+        if (opt_obj == nullptr)
+            return false;
+    }
     ompl::base::Cost cost = path.cost(opt_obj); 
     sout << cost.value();
     return true;

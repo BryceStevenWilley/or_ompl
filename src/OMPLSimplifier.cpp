@@ -50,6 +50,10 @@ namespace or_ompl {
 
 OMPLSimplifier::OMPLSimplifier(OpenRAVE::EnvironmentBasePtr env)
     : OpenRAVE::PlannerBase(env) {
+    RegisterCommand("GetParameters",
+        boost::bind(&OMPLSimplifier::GetParametersCommand, this, _1, _2),
+        "returns the list of accepted planner parameters"
+    );
 }
 
 OMPLSimplifier::~OMPLSimplifier() {
@@ -223,6 +227,10 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
     } else {
         return PS_InterruptedWithSolution;
     }
+}
+
+bool OMPLSimplifier::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
+    return true;
 }
 
 } // namespace or_ompl

@@ -55,7 +55,6 @@ InterfaceBasePtr CreateInterfaceValidated(
         = or_ompl::registry::getPlannerNames();
 
     std::vector<std::string> const simplifier_names = or_ompl::registry::getSimplifierNames();
-    RAVELOG_WARN("%d simplifiers", simplifier_names.size());
 
     if (type == PT_Planner && boost::starts_with(interfacename, "ompl_")) {
         // Handle OMPLSimplifier as a special case. This doesn't implement the
@@ -69,12 +68,10 @@ InterfaceBasePtr CreateInterfaceValidated(
 
         // Check for automatically-wrapped optimizer (simplifier in the current terms).
         std::string const ompl_planner_name = interfacename.substr(5);
-        RAVELOG_WARN("%s", ompl_planner_name.c_str()); 
         for (std::string const &candidate_name : simplifier_names)
         {
             std::string candidate_name_lower = candidate_name;
             boost::algorithm::to_lower(candidate_name_lower);
-            RAVELOG_WARN("%s", candidate_name_lower.c_str());
             if (candidate_name_lower == ompl_planner_name) {
                 or_ompl::PlannerFactory const factory = boost::bind(
                     &or_ompl::registry::createSimplifier, candidate_name, _1);

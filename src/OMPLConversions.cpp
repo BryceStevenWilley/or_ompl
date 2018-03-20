@@ -199,9 +199,9 @@ ompl::base::StateSpacePtr CreateStateSpace(OpenRAVE::RobotBasePtr const robot,
     }
 
     if (has_weights) {
-        RAVELOG_DEBUG("Robot specifies DOF weights. Only unit weights are"
-                     " supported by OMPL; planning will commence as if"
-                     " there are no weights.\n");
+        //RAVELOG_DEBUG("Robot specifies DOF weights. Only unit weights are"
+        //             " supported by OMPL; planning will commence as if"
+        //             " there are no weights.\n");
     }
 
     state_space->setup();

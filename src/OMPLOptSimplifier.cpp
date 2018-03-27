@@ -695,6 +695,10 @@ bool OMPLOptSimplifier::GetCost(std::ostream & sout, std::istream &sin) const
     ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
     FromORTrajectory(m_robot, traj, path);
     // Now, get the cost of 'path'.
+    if (m_planner->getName() == "TrajOpt")
+    {
+        path.interpolate(m_planner->as<ompl::geometric::TrajOpt>()->getTimeStepCount());
+    }
     ompl::base::OptimizationObjectivePtr opt_obj = m_simple_setup->getOptimizationObjective();
     if (opt_obj == nullptr)
     {

@@ -53,6 +53,8 @@ public:
 
     virtual PlannerParametersConstPtr GetParameters() const { return m_parameters; }
 
+    virtual bool GetDTW(std::ostream &sout, std::istream &sin) const;
+
 private:
     OpenRAVE::RobotBasePtr m_robot;
     OMPLPlannerParametersPtr m_parameters;

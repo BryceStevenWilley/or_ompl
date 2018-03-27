@@ -114,7 +114,7 @@ void GetPluginAttributesValidated(PLUGININFO &info) {
     info.interfacenames[PT_Planner].push_back("OMPL_Nothing");
 
     // Forward OMPL log messages to OpenRAVE.
-    ompl::msg::setLogLevel(ompl::msg::LOG_DEBUG);
+    ompl::msg::setLogLevel(ompl::msg::LOG_INFO);
     ompl::msg::useOutputHandler(new or_ompl::OpenRAVEHandler);
 }
 

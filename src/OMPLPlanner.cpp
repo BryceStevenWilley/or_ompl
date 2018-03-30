@@ -57,36 +57,40 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace or_ompl {
 
-OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
+AOMPLPlanner::AOMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
                          PlannerFactory const &planner_factory)
     : OpenRAVE::PlannerBase(penv)
     , m_initialized(false)
     , m_planner_factory(planner_factory) {
 
     RegisterCommand("GetParameters",
-        boost::bind(&OMPLPlanner::GetParametersCommand, this, _1, _2),
+        boost::bind(&AOMPLPlanner::GetParametersCommand, this, _1, _2),
         "returns the list of accepted planner parameters"
     );
 
     RegisterCommand("GetParameterValue",
-        boost::bind(&OMPLPlanner::GetParameterValCommand, this, _1, _2),
+        boost::bind(&AOMPLPlanner::GetParameterValCommand, this, _1, _2),
         "returns the value of a specific parameter"
     );
 
     RegisterCommand("GetTimes",
-        boost::bind(&OMPLPlanner::GetTimes,this,_1,_2),
+        boost::bind(&AOMPLPlanner::GetTimes,this,_1,_2),
         "get timing information from last plan");
+}
+
+AOMPLPlanner::~AOMPLPlanner() {
+}
+
+OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
+                        PlannerFactory const &planner_factory)
+    : AOMPLPlanner(penv, planner_factory) {
 
     RegisterCommand("GetCost",
         boost::bind(&OMPLPlanner::GetCost,this,_1,_2),
         "get cost information for the given trajectory");
-
 }
 
-OMPLPlanner::~OMPLPlanner() {
-}
-
-bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input) {
+bool AOMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input) {
     OMPLPlannerParametersPtr params = boost::make_shared<OMPLPlannerParameters>();
     input >> *params;
     return InitPlan(robot, params);
@@ -264,32 +268,23 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
     }
 }
 
-ompl::base::PlannerPtr OMPLPlanner::CreatePlanner(
+
+std::map<std::string, std::string> AOMPLPlanner::GetParameterVector(
     OMPLPlannerParameters const &params) {
-    // Create the planner.
-    ompl::base::SpaceInformationPtr const spaceInformation
-            = m_simple_setup->getSpaceInformation();
-
-    ompl::base::PlannerPtr planner(m_planner_factory(spaceInformation));
-    if (!planner) {
-        RAVELOG_ERROR("Failed creating planner.");
-        return ompl::base::PlannerPtr();
-    }
-
     // Populate planner parameters from the PlannerParameters.
     std::string const params_str = "<ExtraParams>"
-                                   + m_parameters->_sExtraParameters
+                                   + params._sExtraParameters
                                    + "</ExtraParams>";
     TiXmlDocument doc_xml;
     doc_xml.Parse(params_str.c_str());
     if (doc_xml.Error()) {
         RAVELOG_ERROR("Failed parsing XML parameters: %s\n",
                       doc_xml.ErrorDesc());
-        return ompl::base::PlannerPtr();
+        return std::map<std::string, std::string>();
     }
 
     TiXmlElement const *root_xml = doc_xml.RootElement();
-    std::vector< std::pair<std::string,std::string> > params_vec;
+    std::map<std::string,std::string> params_map;
 
     for (TiXmlElement const *it_ele = root_xml->FirstChildElement();
          it_ele;
@@ -303,7 +298,7 @@ ompl::base::PlannerPtr OMPLPlanner::CreatePlanner(
             RAVELOG_ERROR("Failed parsing planner parameters:"
                           " Element '%s' does not contain a value.\n",
                           key.c_str());
-            return ompl::base::PlannerPtr();
+            return std::map<std::string, std::string>();
         }
         TiXmlText const *text = node->ToText();
         TiXmlNode const *next_node = node->NextSibling();
@@ -314,13 +309,29 @@ ompl::base::PlannerPtr OMPLPlanner::CreatePlanner(
         }
         std::string const value = text->Value();
 
-        params_vec.push_back(std::make_pair(key, value));
+        params_map[key] = value;
     }
+
+    return params_map;
+}
+
+ompl::base::PlannerPtr AOMPLPlanner::CreatePlanner(
+    OMPLPlannerParameters const &params) {
+    // Create the planner.
+    ompl::base::SpaceInformationPtr const spaceInformation
+            = m_simple_setup->getSpaceInformation();
+
+    ompl::base::PlannerPtr planner(m_planner_factory(spaceInformation));
+    if (!planner) {
+        RAVELOG_ERROR("Failed creating planner.");
+        return ompl::base::PlannerPtr();
+    }
+
+    auto params_map = GetParameterVector(params);
 
     ompl::base::ParamSet &param_set = planner->params();
     bool is_success = true;
-    for (std::vector< std::pair<std::string,std::string> >::iterator
-        it=params_vec.begin(); it!=params_vec.end(); it++)
+    for (auto it = params_map.begin(); it != params_map.end(); it++)
     {
         is_success = param_set.setParam(it->first, it->second);
         if (!is_success)
@@ -367,7 +378,16 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         } BOOST_SCOPE_EXIT_END
 
         ompl::base::PlannerStatus ompl_status;
-        ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
+        PlannerTerminationCondition ptc = 
+                ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit);
+        std::function<dobule()> currentCost = [m_planner]() {
+           // TODO(brycew): check the type of planner, get the best cost so far.
+        };
+        std::ofstream file_out;
+        file_out.open("/tmp/" + m_planner->getName() + "_conversion_rates.json");
+        auto rtc = ompl::base::RecordingTerminationCondition(currentCost, ptc, file_out);
+
+        ompl_status = m_simple_setup->solve(rtc);
 
         // Handle OMPL return codes, set planner_status and ptraj
         if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION
@@ -414,7 +434,7 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
     return planner_status;
 }
 
-bool OMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
+bool AOMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
     typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
 
     ompl::base::PlannerPtr planner;
@@ -446,7 +466,7 @@ bool OMPLPlanner::GetParametersCommand(std::ostream &sout, std::istream &sin) co
     return true;
 }
 
-bool OMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) const {
+bool AOMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) const {
     typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
     //Obtain argument from input stream
     std::string inp_arg;
@@ -489,7 +509,7 @@ bool OMPLPlanner::GetParameterValCommand(std::ostream &sout, std::istream &sin) 
 }
 
 
-bool OMPLPlanner::GetTimes(std::ostream & sout, std::istream & sin) const {
+bool AOMPLPlanner::GetTimes(std::ostream & sout, std::istream & sin) const {
     if (!m_or_validity_checker)
     {
         RAVELOG_ERROR("GetTimes cannot be called before a plan has been initialized!\n");

@@ -50,7 +50,38 @@ namespace or_ompl {
 
 typedef boost::function<ompl::base::Planner *(ompl::base::SpaceInformationPtr)> PlannerFactory;
 
-class OMPLPlanner: public OpenRAVE::PlannerBase {
+class AOMPLPlanner : public OpenRAVE::PlannerBase {
+public:
+    AOMPLPlanner(OpenRAVE::EnvironmentBasePtr penv, PlannerFactory const &planner_factory);
+    virtual ~AOMPLPlanner();
+
+    virtual bool InitPlan(OpenRAVE::RobotBasePtr robot,
+                          PlannerParametersConstPtr params)=0;
+    virtual bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input);
+
+    bool GetTimes(std::ostream & sout, std::istream & sin) const;
+    bool GetParameterValCommand(std::ostream &sout, std::istream &sin) const;
+
+protected:
+    std::map<std::string, std::string> GetParameterVector(OMPLPlannerParameters const &params);
+    ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
+    bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
+
+    bool m_initialized;
+    PlannerFactory m_planner_factory;
+    
+    OMPLPlannerParametersPtr m_parameters;
+    ompl::geometric::SimpleSetupPtr m_simple_setup;
+    ompl::base::StateSpacePtr m_state_space;
+    OrStateValidityCheckerPtr m_or_validity_checker;
+    ompl::base::PlannerPtr m_planner;
+    OpenRAVE::RobotBasePtr m_robot;
+    OpenRAVE::CollisionReportPtr m_collisionReport;
+    double m_totalPlanningTime;
+
+};
+
+class OMPLPlanner: public  AOMPLPlanner {
 public:
     OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
                 PlannerFactory const &planner_factory);
@@ -66,30 +97,12 @@ public:
         return m_parameters;
     }
 
-    bool GetTimes(std::ostream & sout, std::istream & sin) const;
     bool GetCost(std::ostream & sout, std::istream & sin) const;
-    bool GetParameterValCommand(std::ostream &sout, std::istream &sin) const;
 
 protected:
     const ompl::base::PlannerPtr & get_planner() {
         return m_planner;
     }
-
-private:
-    bool m_initialized;
-    PlannerFactory m_planner_factory;
-    OMPLPlannerParametersPtr m_parameters;
-    ompl::geometric::SimpleSetupPtr m_simple_setup;
-    ompl::base::StateSpacePtr m_state_space;
-    OrStateValidityCheckerPtr m_or_validity_checker;
-    ompl::base::PlannerPtr m_planner;
-    OpenRAVE::RobotBasePtr m_robot;
-    OpenRAVE::CollisionReportPtr m_collisionReport;
-    double m_totalPlanningTime;
-
-    ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
-
-    bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
 
 };
 

@@ -175,24 +175,8 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
 
 OMPLOptSimplifier::OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
                          PlannerFactory const &simplifier_factory)
-    : OpenRAVE::PlannerBase(penv)
-    , m_initialized(false)
-    , m_simplifier_factory(simplifier_factory) {
+    : AOMPLPlanner(penv, simplifier_factory) {
 
-    RegisterCommand("GetParameters",
-        boost::bind(&OMPLOptSimplifier::GetParametersCommand, this, _1, _2),
-        "returns the list of accepted planner parameters"
-    );
-
-    RegisterCommand("GetParameterValue",
-        boost::bind(&OMPLOptSimplifier::GetParameterValCommand, this, _1, _2),
-        "returns the value of a specific parameter"
-    );
-
-    RegisterCommand("GetTimes",
-        boost::bind(&OMPLOptSimplifier::GetTimes,this,_1,_2),
-        "get timing information from last plan");
-    
     RegisterCommand("GetCost",
         boost::bind(&OMPLOptSimplifier::GetCost,this,_1,_2),
         "get cost information for the given trajectory");
@@ -431,94 +415,6 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
     }
 }
 
-std::map<std::string, std::string> OMPLOptSimplifier::GetParameterVector(
-    OMPLPlannerParameters const &params) {
-    // Populate planner parameters from the PlannerParameters.
-    std::string const params_str = "<ExtraParams>"
-                                   + params._sExtraParameters
-                                   + "</ExtraParams>";
-    TiXmlDocument doc_xml;
-    doc_xml.Parse(params_str.c_str());
-    if (doc_xml.Error()) {
-        RAVELOG_ERROR("Failed parsing XML parameters: %s\n",
-                      doc_xml.ErrorDesc());
-        return std::map<std::string, std::string>();
-    }
-
-    TiXmlElement const *root_xml = doc_xml.RootElement();
-    std::map<std::string,std::string> params_map;
-
-    for (TiXmlElement const *it_ele = root_xml->FirstChildElement();
-         it_ele;
-         it_ele = it_ele->NextSiblingElement()) {
-        // Extract the property name.
-        std::string const key = it_ele->ValueStr();
-
-        // Extract the property value.
-        TiXmlNode const *node = it_ele->FirstChild();
-        if (!node) {
-            RAVELOG_ERROR("Failed parsing planner parameters:"
-                          " Element '%s' does not contain a value.\n",
-                          key.c_str());
-            return std::map<std::string, std::string>();
-        }
-        TiXmlText const *text = node->ToText();
-        TiXmlNode const *next_node = node->NextSibling();
-        if (!text || next_node) {
-            RAVELOG_ERROR("Failed parsing planner parameters:"
-                          " Element '%s' contains complex data.\n",
-                          key.c_str());
-        }
-        std::string const value = text->Value();
-
-        params_map[key] = value;
-    }
-
-    return params_map;
-}
-
-ompl::base::PlannerPtr OMPLOptSimplifier::CreatePlanner(
-    OMPLPlannerParameters const &params) {
-    // Create the planner.
-    ompl::base::SpaceInformationPtr const spaceInformation
-            = m_simple_setup->getSpaceInformation();
-
-    ompl::base::PlannerPtr planner(m_simplifier_factory(spaceInformation));
-    if (!planner) {
-        RAVELOG_ERROR("Failed creating planner.");
-        return ompl::base::PlannerPtr();
-    }
-
-    auto params_map = GetParameterVector(params);
-
-    ompl::base::ParamSet &param_set = planner->params();
-    bool is_success = true;
-    for (auto it = params_map.begin(); it != params_map.end(); it++)
-    {
-        is_success = param_set.setParam(it->first, it->second);
-        if (!is_success)
-            break;
-    }
-
-    // Print out the list of valid parameters.
-    if (!is_success) {
-        std::vector<std::string> param_names;
-        param_set.getParamNames(param_names);
-
-        std::stringstream param_stream;
-        BOOST_FOREACH (std::string const &param_name, param_names) {
-            param_stream << " " << param_name;
-        }
-        std::string const param_str = param_stream.str();
-
-        RAVELOG_ERROR("Invalid planner parameters."
-                      " The following parameters are supported:%s\n",
-                      param_str.c_str());
-        return ompl::base::PlannerPtr();
-    }
-    return planner;
-}
-
 OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj) {
     // Needed so TrajOpt can init the problem instance.
     m_simple_setup->setup();
@@ -599,93 +495,6 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
         boost::chrono::duration<double> >(toc - tic).count();
 
     return planner_status;
-}
-
-bool OMPLOptSimplifier::GetParametersCommand(std::ostream &sout, std::istream &sin) const {
-    typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
-
-    ompl::base::PlannerPtr planner;
-    if (m_planner) {
-        planner = m_planner;
-    }
-    // We need an instance of the planner to query its ParamSet. Unfortunately,
-    // constructing the planner requires a SpaceInformationPtr, which can only
-    // be generated from an existing StateSpace. As a workaround, we construct
-    // a simple one-DOF state space and make a temporary planner instance.
-    else {
-        ompl::base::StateSpacePtr const state_space(
-            new ompl::base::RealVectorStateSpace(1));
-        ompl::base::SpaceInformationPtr const space_information(
-            new ompl::base::SpaceInformation(state_space));
-        planner.reset(m_simplifier_factory(space_information));
-    }
-
-    // Query the supported parameters. Each planner has a name and a "range
-    // suggestion", which is used to generate the GUI in OMPL.app.
-    ompl::base::ParamSet const &param_set = planner->params();
-    ParamMap const &param_map = param_set.getParams();
-
-    ParamMap::const_iterator it;
-    for (it = param_map.begin(); it != param_map.end(); ++it) {
-        sout << it->first << " (" << it->second->getRangeSuggestion() << ")\n";
-    }
-
-    return true;
-}
-
-bool OMPLOptSimplifier::GetParameterValCommand(std::ostream &sout, std::istream &sin) const {
-    typedef std::map<std::string, ompl::base::GenericParamPtr> ParamMap;
-    //Obtain argument from input stream
-    std::string inp_arg;
-    sin >> inp_arg;
-
-    ompl::base::PlannerPtr planner;
-    if (m_planner) {
-        planner = m_planner;
-    }
-    // We need an instance of the planner to query its ParamSet. Unfortunately,
-    // constructing the planner requires a SpaceInformationPtr, which can only
-    // be generated from an existing StateSpace. As a workaround, we construct
-    // a simple one-DOF state space and make a temporary planner instance.
-    else {
-        ompl::base::StateSpacePtr const state_space(
-            new ompl::base::RealVectorStateSpace(1));
-        ompl::base::SpaceInformationPtr const space_information(
-            new ompl::base::SpaceInformation(state_space));
-        planner.reset(m_simplifier_factory(space_information));
-    }
-
-    // Query the supported parameters. Each planner has a name and a "range
-    // suggestion", which is used to generate the GUI in OMPL.app.
-
-    ompl::base::ParamSet const &param_set = planner->params();
-    std::string value;
-
-    //Check if in parameter map
-    bool in_map = param_set.getParam(inp_arg,value);
-
-    if(!in_map){
-        RAVELOG_ERROR("Parameter not in set\n");
-        throw OpenRAVE::openrave_exception("Parameter not in set",OpenRAVE::ORE_InvalidArguments);
-    }
-    else{
-        //Output key-value pair
-        sout<<inp_arg<<" "<<value;
-    }
-    return true;
-}
-
-
-bool OMPLOptSimplifier::GetTimes(std::ostream & sout, std::istream & sin) const {
-    if (!m_or_validity_checker)
-    {
-        RAVELOG_ERROR("GetTimes cannot be called before a plan has been initialized!\n");
-        return false;
-    }
-    sout << "checktime " << m_or_validity_checker->getTotalCollisionTime();
-    sout << " totaltime " << m_totalPlanningTime;
-    sout << " n_checks " << m_or_validity_checker->getNumCollisionChecks();
-    return true;
 }
 
 bool OMPLOptSimplifier::GetCost(std::ostream & sout, std::istream &sin) const

@@ -80,7 +80,7 @@ private:
     std::vector<OpenRAVE::KinBody::LinkPtr> links_;
 };
 
-class OMPLOptSimplifier: public OpenRAVE::PlannerBase {
+class OMPLOptSimplifier: public AOMPLPlanner {
 public:
     OMPLOptSimplifier(OpenRAVE::EnvironmentBasePtr penv,
                       PlannerFactory const &simplifier_factory);
@@ -96,26 +96,10 @@ public:
         return m_parameters;
     }
 
-    bool GetTimes(std::ostream & sout, std::istream & sin) const;
     bool GetCost(std::ostream & sout, std::istream & sin) const;
-    bool GetParameterValCommand(std::ostream &sout, std::istream &sin) const;
 
 private:
-    bool m_initialized;
-    PlannerFactory m_simplifier_factory;
-    OMPLPlannerParametersPtr m_parameters;
-    ompl::geometric::SimpleSetupPtr m_simple_setup;
-    ompl::base::StateSpacePtr m_state_space;
-    OrStateValidityCheckerPtr m_or_validity_checker;
-    ompl::base::PlannerPtr m_planner;
-    OpenRAVE::RobotBasePtr m_robot;
-    OpenRAVE::CollisionReportPtr m_collisionReport;
-    double m_totalPlanningTime;
     std::shared_ptr<TrajOptWrapper> m_wrapper;
-
-    ompl::base::PlannerPtr CreatePlanner(OMPLPlannerParameters const &params);
-
-    std::map<std::string, std::string> GetParameterVector(OMPLPlannerParameters const &params);
 
     bool GetParametersCommand(std::ostream &sout, std::istream &sin) const;
 };

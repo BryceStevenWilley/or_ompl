@@ -43,11 +43,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/StateSpaceTypes.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/PlannerTerminationCondition.h>
 #include <ompl/base/objectives/CollisionEvaluator.h>
 #include <ompl/base/objectives/ObstacleConstraint.h>
 #include <ompl/base/objectives/JointDistanceObjective.h>
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
 #include <ompl/geometric/planners/trajopt/TrajOpt.h>
+#include <ompl/geometric/planners/rrt/RRTXstatic.h>
+#include <ompl/geometric/planners/rrt/RRTstar.h>
+#include <ompl/geometric/planners/bitstar/BITstar.h>
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
@@ -89,6 +93,8 @@ OMPLPlanner::OMPLPlanner(OpenRAVE::EnvironmentBasePtr penv,
         boost::bind(&OMPLPlanner::GetCost,this,_1,_2),
         "get cost information for the given trajectory");
 }
+
+OMPLPlanner::~OMPLPlanner() {}
 
 bool AOMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input) {
     OMPLPlannerParametersPtr params = boost::make_shared<OMPLPlannerParameters>();
@@ -378,10 +384,26 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         } BOOST_SCOPE_EXIT_END
 
         ompl::base::PlannerStatus ompl_status;
-        PlannerTerminationCondition ptc = 
+        ompl::base::PlannerTerminationCondition ptc = 
                 ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit);
-        std::function<dobule()> currentCost = [m_planner]() {
-           // TODO(brycew): check the type of planner, get the best cost so far.
+        std::function<double()> currentCost = [this]() {
+            if (m_planner->getName() == "kBITstar")
+            {
+                return m_planner->as<ompl::geometric::BITstar>()->bestCost().value();
+            }
+            else if (m_planner->getName() == "RRTXstatic")
+            {
+                return m_planner->as<ompl::geometric::RRTXstatic>()->bestCost().value();
+            }
+            else if (m_planner->getName() == "RRTstar")
+            {
+                return m_planner->as<ompl::geometric::RRTstar>()->bestCost().value();
+            }
+            else
+            {
+                RAVELOG_WARN("No such planner as %s", m_planner->getName().c_str());
+                return -1.0; // ?
+            }
         };
         std::ofstream file_out;
         file_out.open("/tmp/" + m_planner->getName() + "_conversion_rates.json");

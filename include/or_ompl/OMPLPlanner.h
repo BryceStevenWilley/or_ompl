@@ -88,8 +88,7 @@ public:
     virtual ~OMPLPlanner();
 
     virtual bool InitPlan(OpenRAVE::RobotBasePtr robot,
-                          PlannerParametersConstPtr params);
-    virtual bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream& input);
+                          PlannerParametersConstPtr params) override;
 
     virtual OpenRAVE::PlannerStatus PlanPath (OpenRAVE::TrajectoryBasePtr ptraj);
 

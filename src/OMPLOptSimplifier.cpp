@@ -449,8 +449,22 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
             m_or_validity_checker->stop();
         } BOOST_SCOPE_EXIT_END
 
+
+        std::ofstream file_out;
+        file_out.open("/tmp/trajopt_conversion_rates.json");
+        file_out << "[";
+
+        auto callback = [file_out, this](ompl::sco::OptProb *prob, std::vector<double> &x, double cost) {
+            static int iteration = 0;
+            iteration++;
+            file_out << "{\"iter\":" << iteration << 
+                            ", \"seconds_elapsed\":" << dp.seconds_elapsed_ <<
+                            ", \"cost\":" << dp.cost_ << "},";
+        };
         ompl::base::PlannerStatus ompl_status;
         ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
+        file_out << "]";
+        file_out.close();
 
         // Handle OMPL return codes, set planner_status and ptraj
         if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION

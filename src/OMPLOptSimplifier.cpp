@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <time.h>
 #include <tinyxml.h>
+#include <iostream>
 #include <boost/chrono.hpp>
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
@@ -49,6 +50,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
 #include <ompl/geometric/planners/trajopt/TrajOpt.h>
 #include <ompl/trajopt/modeling.h>
+#include <ompl/trajopt/optimizers.h>
+#include <ompl/util/Time.h>
 
 #include <or_ompl/config.h>
 #include <or_ompl/OMPLConversions.h>
@@ -454,14 +457,16 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
         file_out.open("/tmp/trajopt_conversion_rates.json");
         file_out << "[";
 
-        auto callback = [file_out, this](ompl::sco::OptProb *prob, std::vector<double> &x, double cost) {
+        auto start_time_point = ompl::time::now();
+        auto callback = [&file_out, start_time_point, this](sco::OptProb *prob, std::vector<double> &x, double cost) {
             static int iteration = 0;
             iteration++;
             file_out << "{\"iter\":" << iteration << 
-                            ", \"seconds_elapsed\":" << dp.seconds_elapsed_ <<
-                            ", \"cost\":" << dp.cost_ << "},";
+                            ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
+                            ", \"cost\":" << cost << "},";
         };
         ompl::base::PlannerStatus ompl_status;
+        m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback(callback);
         ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
         file_out << "]";
         file_out.close();

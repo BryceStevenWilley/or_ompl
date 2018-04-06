@@ -386,30 +386,37 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         ompl::base::PlannerStatus ompl_status;
         ompl::base::PlannerTerminationCondition ptc = 
                 ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit);
-        std::function<double()> currentCost = [this]() {
-            if (m_planner->getName() == "kBITstar")
-            {
-                return m_planner->as<ompl::geometric::BITstar>()->bestCost().value();
-            }
-            else if (m_planner->getName() == "RRTXstatic")
-            {
-                return m_planner->as<ompl::geometric::RRTXstatic>()->bestCost().value();
-            }
-            else if (m_planner->getName() == "RRTstar")
-            {
-                return m_planner->as<ompl::geometric::RRTstar>()->bestCost().value();
-            }
-            else
-            {
-                RAVELOG_WARN("No such planner as %s", m_planner->getName().c_str());
-                return -1.0; // ?
-            }
-        };
-        std::ofstream file_out;
-        file_out.open("/tmp/" + m_planner->getName() + "_conversion_rates.json");
-        auto rtc = ompl::base::RecordingTerminationCondition(currentCost, ptc, file_out);
+        if (m_parameters->m_dat_filename != "")
+        {
+            std::function<double()> currentCost = [this]() {
+                if (m_planner->getName() == "kBITstar")
+                {
+                    return m_planner->as<ompl::geometric::BITstar>()->bestCost().value();
+                }
+                else if (m_planner->getName() == "RRTXstatic")
+                {
+                    return m_planner->as<ompl::geometric::RRTXstatic>()->bestCost().value();
+                }
+                else if (m_planner->getName() == "RRTstar")
+                {
+                    return m_planner->as<ompl::geometric::RRTstar>()->bestCost().value();
+                }
+                else
+                {
+                    RAVELOG_WARN("No such planner as %s", m_planner->getName().c_str());
+                    return -1.0; // ?
+                }
+            };
+            std::ofstream file_out;
+            file_out.open(m_parameters->m_dat_filename); 
+            auto rtc = ompl::base::RecordingTerminationCondition(currentCost, ptc, file_out);
 
-        ompl_status = m_simple_setup->solve(rtc);
+            ompl_status = m_simple_setup->solve(rtc);
+        }
+        else
+        {
+            ompl_status = m_simple_setup->solve(ptc);
+        }
 
         // Handle OMPL return codes, set planner_status and ptraj
         if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION

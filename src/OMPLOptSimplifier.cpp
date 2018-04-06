@@ -452,24 +452,40 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
             m_or_validity_checker->stop();
         } BOOST_SCOPE_EXIT_END
 
-
-        std::ofstream file_out;
-        file_out.open("/tmp/trajopt_conversion_rates.json");
-        file_out << "[";
-
-        auto start_time_point = ompl::time::now();
-        auto callback = [&file_out, start_time_point, this](sco::OptProb *prob, std::vector<double> &x, double cost) {
-            static int iteration = 0;
-            iteration++;
-            file_out << "{\"iter\":" << iteration << 
-                            ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
-                            ", \"cost\":" << cost << "},";
-        };
         ompl::base::PlannerStatus ompl_status;
-        m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback(callback);
-        ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
-        file_out << "]";
-        file_out.close();
+
+        if (m_parameters->m_dat_filename != "")
+        {
+            std::ofstream file_out;
+            file_out.open(m_parameters->m_dat_filename);
+            file_out << "[";
+
+            auto start_time_point = ompl::time::now();
+            auto callback = [&file_out, start_time_point, this](sco::OptProb *prob, std::vector<double> &x, double cost) {
+                static int iteration = 0;
+                iteration++;
+                if (iteration == 1)
+                {
+                file_out << "{\"iter\":" << iteration << 
+                            ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
+                            ", \"cost\":" << cost << "}";
+                }
+                else
+                {
+                    file_out << ",{\"iter\":" << iteration << 
+                                ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
+                                ", \"cost\":" << cost << "}";
+                }
+            };
+            m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback(callback);
+            ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
+            file_out << "]";
+            file_out.close();
+        }
+        else
+        {
+            ompl_status = m_simple_setup->solve(m_parameters->m_timeLimit);
+        }
 
         // Handle OMPL return codes, set planner_status and ptraj
         if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION

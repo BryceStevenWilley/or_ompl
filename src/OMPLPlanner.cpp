@@ -265,6 +265,10 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             return false;
         }
         m_simple_setup->setPlanner(m_planner);
+        // Make the asym-opt planners use TrajOpt's cost, which is distance squared.
+        if (m_planner->getName() != "kBITstar")
+            m_simple_setup->setOptimizationObjective(
+                std::make_shared<ompl::base::JointDistanceObjective>(m_simple_setup->getSpaceInformation()));
 
         m_initialized = true;
         return true;
@@ -273,7 +277,6 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         return false;
     }
 }
-
 
 std::map<std::string, std::string> AOMPLPlanner::GetParameterVector(
     OMPLPlannerParameters const &params) {

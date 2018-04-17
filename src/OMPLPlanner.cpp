@@ -236,6 +236,11 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
 
                 if (!m_or_validity_checker->isValid(q_goal.get())) {
                     RAVELOG_ERROR("Single goal configuration is in collision.\n");
+                    std::stringstream ss;
+                    for (size_t i = 0; i < num_dof; i++) {
+                        ss << q_goal[i] << ", ";
+                    }
+                    RAVELOG_ERROR("Configuration: %s", ss.str().c_str());
                     return false;
                 }
 
@@ -266,9 +271,17 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         }
         m_simple_setup->setPlanner(m_planner);
         // Make the asym-opt planners use TrajOpt's cost, which is distance squared.
-        if (m_planner->getName() != "kBITstar")
-            m_simple_setup->setOptimizationObjective(
-                std::make_shared<ompl::base::JointDistanceObjective>(m_simple_setup->getSpaceInformation()));
+        if (m_planner->getName() != "kBITstar") {
+            auto obj = std::make_shared<ompl::base::JointDistanceObjective>(m_simple_setup->getSpaceInformation());
+            obj->setCostThreshold(obj->infiniteCost());
+            m_simple_setup->setOptimizationObjective(obj);
+        }
+        else
+        {
+            auto obj = std::make_shared<ompl::base::PathLengthOptimizationObjective>(m_simple_setup->getSpaceInformation());
+            obj->setCostThreshold(obj->infiniteCost());
+            m_simple_setup->setOptimizationObjective(obj);
+        }
 
         m_initialized = true;
         return true;
@@ -388,7 +401,8 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 
         ompl::base::PlannerStatus ompl_status;
         ompl::base::PlannerTerminationCondition ptc = 
-                ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit);
+                    ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit); 
+
         if (m_parameters->m_dat_filename != "")
         {
             std::function<double()> currentCost = [this]() {

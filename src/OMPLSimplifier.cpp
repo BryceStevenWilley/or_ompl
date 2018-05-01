@@ -159,6 +159,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
     double const length_before = path.length();
     double const smoothness_before = path.smoothness();
     int num_changes = 0;
+    int sum_change_positions = 0;
 
     ompl::time::duration const time_limit
         = ompl::time::seconds(m_parameters->m_timeLimit);
@@ -188,6 +189,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
         //                 vertices
         bool const changed = m_simplifier->shortcutPath(path, 1, 1, 1.0, 0.005);
         num_changes += !!changed;
+        sum_change_positions += (changed) ? progress._iteration : 0;
         progress._iteration += 1;
 
         // Call any user-registered callbacks. These functions can terminate
@@ -198,18 +200,21 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
     } while (time_current - time_before <= time_limit
           && planner_action == PA_None);
 
+    //bool const changed = m_simplifier->shortcutPath(path, 200, 10, 1.0, 0.005);
+
     double const length_after = path.length();
     double const smoothness_after = path.smoothness();
 
     RAVELOG_WARN(
         "Ran %d iterations of smoothing over %.3f seconds. %d of %d iterations"
-        " (%.2f%%) were effective. Reduced path length from %.3f to %.3f, "
+        " (%.2f%%) were effective, mean iteration of successes was %f. Reduced path length from %.3f to %.3f, "
         "smoothness from %.3f to %.3f.\n",
         progress._iteration,
         ompl::time::seconds(time_current - time_before),
         num_changes,
         progress._iteration,
         100 * static_cast<double>(num_changes) / progress._iteration,
+        static_cast<double>(sum_change_positions) / progress._iteration,
         length_before, length_after,
         smoothness_before, smoothness_after
     );

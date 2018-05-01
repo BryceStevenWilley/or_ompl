@@ -404,6 +404,23 @@ bool OMPLOptSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
                 bare_bones->addObjective(std::make_shared<ompl::base::ObstacleConstraint>(si, safety_distance, collisions, jacobian));
             }
             m_simple_setup->setOptimizationObjective(bare_bones);
+             m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback([this](sco::OptProb *prob, std::vector<double>& x, double cost) {
+                //int dof = m_simple_setup->getStateSpace()->getDimension();
+                //int timesteps = x.size() / dof;
+                //fprintf(stderr, "DOF: %d, timesteps: %d\n", dof, timesteps);
+                //OpenRAVE::TrajectoryBasePtr or_traj = RaveCreateTrajectory(m_robot->GetEnv(), "");
+                //or_traj->Init(m_robot->GetActiveConfigurationSpecification("linear"));
+                //for (size_t i = 0; i < timesteps; i++)
+                //{ 
+                //    std::vector<double> values;
+                //    values.insert(values.end(), x.begin() + i * dof, x.begin() + (i + 1) * dof);
+                    //m_robot->SetActiveDOFValues(values);
+                    //usleep(500000);
+                    //or_traj->Insert(i, values, true);
+                //}
+                //OpenRAVE::planningutils::SmoothActiveDOFTrajectory(or_traj, m_robot);
+                //this->m_robot->GetController()->SetPath(or_traj);
+}); 
         }
         else
         {

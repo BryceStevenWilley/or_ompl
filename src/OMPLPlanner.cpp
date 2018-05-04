@@ -436,35 +436,61 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         }
 
         // Handle OMPL return codes, set planner_status and ptraj
-        if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION
-            || ompl_status == ompl::base::PlannerStatus::APPROXIMATE_SOLUTION) {
-
-            if (m_simple_setup->haveSolutionPath()) {
-                ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
-                RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
-                ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
-                if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION) {
-                    planner_status = OpenRAVE::PS_HasSolution;
+        if (m_parameters->m_accept_nonfeasible && (m_planner->getName() == "LazyPRM" || m_planner->getName() == "RRTConnect" || m_planner->getName() == "LazyRRT"))
+        {
+            if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION)
+            {
+                if (m_simple_setup->haveSolutionPath()) {
+                    ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
+                    RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
+                    ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
+                    if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION) {
+                        planner_status = OpenRAVE::PS_HasSolution;
+                    } else {
+                        planner_status = OpenRAVE::PS_InterruptedWithSolution;
+                    }
                 } else {
-                    planner_status = OpenRAVE::PS_InterruptedWithSolution;
+                    RAVELOG_ERROR("Planner returned %s, but no path found!\n", ompl_status.asString().c_str());
+                    planner_status = OpenRAVE::PS_Failed;
                 }
+            }
+            else
+            {
+                // See if simple setup has non-feasible paths added.
+            }
+        }
+        else
+        {
+            if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION
+                || ompl_status == ompl::base::PlannerStatus::APPROXIMATE_SOLUTION) {
+
+                if (m_simple_setup->haveSolutionPath()) {
+                    ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
+                    RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
+                    ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
+                    if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION) {
+                        planner_status = OpenRAVE::PS_HasSolution;
+                    } else {
+                        planner_status = OpenRAVE::PS_InterruptedWithSolution;
+                    }
+                } else {
+                    RAVELOG_ERROR("Planner returned %s, but no path found!\n", ompl_status.asString().c_str());
+                    planner_status = OpenRAVE::PS_Failed;
+                }
+
             } else {
-                RAVELOG_ERROR("Planner returned %s, but no path found!\n", ompl_status.asString().c_str());
+                // Intended to handle:
+                // - PlannerStatus::INVALID_START
+                // - PlannerStatus::INVALID_GOAL
+                // - PlannerStatus::UNRECOGNIZED_GOAL_TYPE
+                // - PlannerStatus::CRASH
+                // - PlannerStatus::ABORT
+                // - PlannerStatus::TIMEOUT
+                // (these cases are not handled explicitly because different versions
+                //  of OMPL support different error cases)
+                RAVELOG_ERROR("Planner returned %s.\n", ompl_status.asString().c_str());
                 planner_status = OpenRAVE::PS_Failed;
             }
-
-        } else {
-            // Intended to handle:
-            // - PlannerStatus::INVALID_START
-            // - PlannerStatus::INVALID_GOAL
-            // - PlannerStatus::UNRECOGNIZED_GOAL_TYPE
-            // - PlannerStatus::CRASH
-            // - PlannerStatus::ABORT
-            // - PlannerStatus::TIMEOUT
-            // (these cases are not handled explicitly because different versions
-            //  of OMPL support different error cases)
-            RAVELOG_ERROR("Planner returned %s.\n", ompl_status.asString().c_str());
-            planner_status = OpenRAVE::PS_Failed;
         }
 
     } catch (std::runtime_error const &e) {

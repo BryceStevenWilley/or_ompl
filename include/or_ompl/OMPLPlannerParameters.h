@@ -51,6 +51,7 @@ public:
     OMPLPlannerParameters()
         : m_seed(0)
         , m_timeLimit(5)
+        , m_accept_nonfeasible(false)
         , m_isProcessingOMPL(false)
         , m_dat_filename("")
         , m_trajs_fileformat("")
@@ -71,6 +72,7 @@ public:
     std::string m_trajs_fileformat;
     std::vector<TSRChain::Ptr> m_tsrchains;
     bool m_doBaked;
+    bool m_accept_nonfeasible;
 
 protected:
 
@@ -89,6 +91,7 @@ protected:
         O << "<seed>" << m_seed << "</seed>\n"
           << "<time_limit>" << m_timeLimit << "</time_limit>\n"
           << "<dat_filename>" << m_dat_filename << "</dat_filename>\n"
+          << "<accept_nonfeasible>" << m_accept_nonfeasible << "</accept_nonfeasible>\n"
           << "<trajs_fileformat>" << m_trajs_fileformat << "</trajs_fileformat>\n"
           << "<do_baked>" << m_doBaked << "</do_baked>\n";
         BOOST_FOREACH(TSRChain::Ptr chain, m_tsrchains) {
@@ -119,6 +122,7 @@ protected:
              name == "seed"
           || name == "time_limit"
           || name == "dat_filename"
+          || name == "accept_nonfeasible"
           || name == "trajs_fileformat"
           || name == "tsr_chain"
           || name == "do_baked";
@@ -134,6 +138,16 @@ protected:
                 _ss >> m_timeLimit;
             } else if (name == "dat_filename") {
                 _ss >> m_dat_filename; 
+            } else if (name == "accept_nonfeasible") {
+                std::string strbool;
+                _ss >> strbool;
+                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true") {
+                    m_accept_nonfeasible = true;
+                } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false") {
+                    m_accept_nonfeasible = false;
+                } else {
+                    RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));
+                }
             } else if (name == "trajs_fileformat") {
                 _ss >> m_trajs_fileformat;
             } else if (name == "tsr_chain") {

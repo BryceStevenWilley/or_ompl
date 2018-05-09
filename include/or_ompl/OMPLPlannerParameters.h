@@ -60,6 +60,7 @@ public:
         _vXMLParameters.push_back("seed");
         _vXMLParameters.push_back("time_limit");
         _vXMLParameters.push_back("dat_filename");
+        _vXMLParameters.push_back("accept_nonfeasible");
         _vXMLParameters.push_back("trajs_fileformat");
         _vXMLParameters.push_back("tsr_chain");
         _vXMLParameters.push_back("do_baked");
@@ -141,9 +142,9 @@ protected:
             } else if (name == "accept_nonfeasible") {
                 std::string strbool;
                 _ss >> strbool;
-                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true") {
+                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true" || strbool=="True") {
                     m_accept_nonfeasible = true;
-                } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false") {
+                } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false" || strbool=="False") {
                     m_accept_nonfeasible = false;
                 } else {
                     RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));
@@ -161,9 +162,9 @@ protected:
             } else if (name == "do_baked") {
                 std::string strbool;
                 _ss >> strbool;
-                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true") {
+                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true" || strbool=="True") {
                     m_doBaked = true;
-                } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false") {
+                } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false" || strbool=="False") {
                     m_doBaked = false;
                 } else {
                     RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));

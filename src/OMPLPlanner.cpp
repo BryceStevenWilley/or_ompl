@@ -438,17 +438,15 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         // Handle OMPL return codes, set planner_status and ptraj
         if (m_parameters->m_accept_nonfeasible && (m_planner->getName() == "LazyPRM" || m_planner->getName() == "RRTConnect" || m_planner->getName() == "LazyRRT"))
         {
+            RAVELOG_WARN("Could be getting nonfeasible.");
             if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION)
             {
+                RAVELOG_WARN("Getting exact soln");
                 if (m_simple_setup->haveSolutionPath()) {
                     ompl::geometric::PathGeometric path = m_simple_setup->getSolutionPath();
                     RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
-                    ToORTrajectory(m_robot, m_simple_setup->getSolutionPath(), ptraj);
-                    if (ompl_status == ompl::base::PlannerStatus::EXACT_SOLUTION) {
-                        planner_status = OpenRAVE::PS_HasSolution;
-                    } else {
-                        planner_status = OpenRAVE::PS_InterruptedWithSolution;
-                    }
+                    ToORTrajectory(m_robot, path, ptraj);
+                    planner_status = OpenRAVE::PS_HasSolution;
                 } else {
                     RAVELOG_ERROR("Planner returned %s, but no path found!\n", ompl_status.asString().c_str());
                     planner_status = OpenRAVE::PS_Failed;
@@ -457,6 +455,20 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
             else
             {
                 // See if simple setup has non-feasible paths added.
+                if (m_simple_setup->haveNonFeasiblePath())
+                {
+                    ompl::geometric::PathGeometric path = m_simple_setup->getNonFeasiblePath();
+
+                    RAVELOG_WARN("Actually getting nonfeasible: %zu segments", path.getStateCount());
+                    RAVELOG_DEBUG("Path length: %.3f, smoothness, %.3f\n", path.length(), path.smoothness());
+                    ToORTrajectory(m_robot, path, ptraj);
+                    planner_status = OpenRAVE::PS_InterruptedWithSolution;
+                }
+                else
+                {
+                    RAVELOG_ERROR("Planner returned %s.\n", ompl_status.asString().c_str());
+                    planner_status = OpenRAVE::PS_Failed;
+                }
             }
         }
         else

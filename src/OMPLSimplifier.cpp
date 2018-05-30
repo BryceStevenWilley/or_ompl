@@ -101,7 +101,7 @@ bool OMPLSimplifier::InitPlan(OpenRAVE::RobotBasePtr robot,
         m_simplifier.reset(new PathSimplifier(m_space_info));
         return true;
     } catch (std::runtime_error const &e) {
-        RAVELOG_ERROR("IntPlan failed: %s\n", e.what());
+        RAVELOG_ERROR("InitPlan failed: %s\n", e.what());
         return false;
     }
 }
@@ -175,6 +175,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
         m_or_validity_checker->stop();
     } BOOST_SCOPE_EXIT_END
 
+    /*
     do {
         // Run one iteration of shortcutting. This gives us fine control over
         // the termination condition and allows us to invoke the planner
@@ -199,13 +200,23 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
         time_current = ompl::time::now();
     } while (time_current - time_before <= time_limit
           && planner_action == PA_None);
+    */
 
-    //bool const changed = m_simplifier->shortcutPath(path, 200, 10, 1.0, 0.005);
+    // Don't just call simplify, because time_limit is probably meant for the first problem, and it's doing fixing and
+    // such that we honestly don't care about.
+    //m_simplifier->simplify(path, ompl::time::seconds(time_limit));
+
+    bool const changed = m_simplifier->shortcutPath(path, 100, 10, 1.0, 0.005);
+    bool tryMore = true;
+    unsigned int times = 0;
+    m_simplifier->collapseCloseVertices(path);
+    while (tryMore && ++times <= 5)
+        tryMore = m_simplifier->reduceVertices(path);
 
     double const length_after = path.length();
     double const smoothness_after = path.smoothness();
 
-    RAVELOG_WARN(
+    /*RAVELOG_WARN(
         "Ran %d iterations of smoothing over %.3f seconds. %d of %d iterations"
         " (%.2f%%) were effective, mean iteration of successes was %f. Reduced path length from %.3f to %.3f, "
         "smoothness from %.3f to %.3f.\n",
@@ -218,6 +229,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
         length_before, length_after,
         smoothness_before, smoothness_after
     );
+    */
 
     // Store the result in the OpenRAVE trajectory.
     RAVELOG_DEBUG("Reconstructing OpenRAVE trajectory with %d waypoints.\n",

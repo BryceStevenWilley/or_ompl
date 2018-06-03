@@ -278,9 +278,17 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         }
         else
         {
+            // If cost threshold is infinite, then planner will stop on first solution.
+            // If cost threshold is zero, will use all of planning budget.
             auto obj = std::make_shared<ompl::base::PathLengthOptimizationObjective>(m_simple_setup->getSpaceInformation());
-            obj->setCostThreshold(obj->infiniteCost());
-            m_simple_setup->setOptimizationObjective(obj);
+            if (m_parameters->m_stop_on_first)
+            {
+                obj->setCostThreshold(obj->infiniteCost());
+            }
+            else
+            {
+                m_simple_setup->setOptimizationObjective(obj);
+            }
         }
 
         m_initialized = true;

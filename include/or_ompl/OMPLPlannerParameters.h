@@ -52,6 +52,7 @@ public:
         : m_seed(0)
         , m_timeLimit(5)
         , m_accept_nonfeasible(false)
+        , m_stop_on_first(true)
         , m_isProcessingOMPL(false)
         , m_dat_filename("")
         , m_trajs_fileformat("")
@@ -61,6 +62,7 @@ public:
         _vXMLParameters.push_back("time_limit");
         _vXMLParameters.push_back("dat_filename");
         _vXMLParameters.push_back("accept_nonfeasible");
+        _vXMLParameters.push_back("stop_on_first");
         _vXMLParameters.push_back("trajs_fileformat");
         _vXMLParameters.push_back("tsr_chain");
         _vXMLParameters.push_back("do_baked");
@@ -74,6 +76,7 @@ public:
     std::vector<TSRChain::Ptr> m_tsrchains;
     bool m_doBaked;
     bool m_accept_nonfeasible;
+    bool m_stop_on_first;
 
 protected:
 
@@ -93,6 +96,7 @@ protected:
           << "<time_limit>" << m_timeLimit << "</time_limit>\n"
           << "<dat_filename>" << m_dat_filename << "</dat_filename>\n"
           << "<accept_nonfeasible>" << m_accept_nonfeasible << "</accept_nonfeasible>\n"
+          << "<stop_on_first>" << m_stop_on_first << "</stop_on_first>\n"
           << "<trajs_fileformat>" << m_trajs_fileformat << "</trajs_fileformat>\n"
           << "<do_baked>" << m_doBaked << "</do_baked>\n";
         BOOST_FOREACH(TSRChain::Ptr chain, m_tsrchains) {
@@ -124,6 +128,7 @@ protected:
           || name == "time_limit"
           || name == "dat_filename"
           || name == "accept_nonfeasible"
+          || name == "stop_on_first"
           || name == "trajs_fileformat"
           || name == "tsr_chain"
           || name == "do_baked";
@@ -146,6 +151,16 @@ protected:
                     m_accept_nonfeasible = true;
                 } else if (strbool=="off" || strbool=="no" || strbool=="0" || strbool=="false" || strbool=="False") {
                     m_accept_nonfeasible = false;
+                } else {
+                    RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));
+                }
+            } else if (name == "stop_on_first") {
+                std::string strbool; 
+                _ss >> strbool;
+                if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true" || strbool =="True") {
+                    m_stop_on_first == true;
+                } else if (strbool == "off" || strbool=="no" || strbool=="0" || strbool=="false" ||strbool == "False") {
+                    m_stop_on_first = false;
                 } else {
                     RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));
                 }

@@ -271,12 +271,12 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
         }
         m_simple_setup->setPlanner(m_planner);
         // Make the asym-opt planners use TrajOpt's cost, which is distance squared.
-        if (m_planner->getName() != "kBITstar") {
-            auto obj = std::make_shared<ompl::base::JointDistanceObjective>(m_simple_setup->getSpaceInformation());
-            obj->setCostThreshold(obj->infiniteCost());
-            m_simple_setup->setOptimizationObjective(obj);
-        }
-        else
+        //if (m_planner->getName() != "kBITstar") {
+        //    auto obj = std::make_shared<ompl::base::JointDistanceObjective>(m_simple_setup->getSpaceInformation());
+        //    obj->setCostThreshold(obj->infiniteCost());
+        //    m_simple_setup->setOptimizationObjective(obj);
+        //}
+        //else
         {
             // If cost threshold is infinite, then planner will stop on first solution.
             // If cost threshold is zero, will use all of planning budget.
@@ -408,10 +408,13 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
         } BOOST_SCOPE_EXIT_END
 
         ompl::base::PlannerStatus ompl_status;
-        ompl::base::PlannerTerminationCondition ptc = 
-                    ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit); 
+        ompl::base::PlannerTerminationCondition ptc =
+                    ompl::base::timedPlannerTerminationCondition(m_parameters->m_timeLimit);
 
-        if (m_parameters->m_dat_filename != "")
+        if (m_parameters->m_dat_filename != "" &&
+            (m_planner->getName() == "kBITstar") ||
+            (m_planner->getName() == "RRTXstatic") ||
+            (m_planner->getName() == "RRTstar"))
         {
             std::function<double()> currentCost = [this]() {
                 if (m_planner->getName() == "kBITstar")
@@ -437,6 +440,7 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
             auto rtc = ompl::base::RecordingTerminationCondition(currentCost, ptc, file_out);
 
             ompl_status = m_simple_setup->solve(rtc);
+            file_out.close();
         }
         else
         {

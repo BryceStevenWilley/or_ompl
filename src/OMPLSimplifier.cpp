@@ -164,7 +164,6 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
     ompl::time::duration const time_limit
         = ompl::time::seconds(m_parameters->m_timeLimit);
     ompl::time::point const time_before = ompl::time::now();
-    ompl::time::point time_current;
 
     RAVELOG_DEBUG("Running path simplification for %f seconds.\n",
                   m_parameters->m_timeLimit);
@@ -206,6 +205,7 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
     // such that we honestly don't care about.
     //m_simplifier->simplify(path, ompl::time::seconds(time_limit));
 
+    ompl::time::point time_current = ompl::time::now();
     bool const changed = m_simplifier->shortcutPath(path, 100, 10, 1.0, 0.005);
     bool tryMore = true;
     unsigned int times = 0;
@@ -215,6 +215,16 @@ OpenRAVE::PlannerStatus OMPLSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr ptr
 
     double const length_after = path.length();
     double const smoothness_after = path.smoothness();
+    if (m_parameters->m_dat_filename != "")
+    {
+        std::ofstream file_out;
+        file_out.open(m_parameters->m_dat_filename);
+        file_out << "[";
+        file_out << "{\"iter\":0, \"seconds_elapsed\":0.0, \"cost\":" << length_before << "}";
+        file_out << "{\"iter\":1, \"seconds_elapsed\":" << ompl::time::seconds(time_current - time_before) << ", \"cost\":" << length_after << "}";
+        file_out << "]";
+        file_out.close();
+    }
 
     /*RAVELOG_WARN(
         "Ran %d iterations of smoothing over %.3f seconds. %d of %d iterations"

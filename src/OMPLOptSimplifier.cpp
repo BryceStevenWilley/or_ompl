@@ -445,14 +445,14 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
     }
     else if (ptraj && ptraj->GetNumWaypoints() != 0)
     {
-        RAVELOG_WARN("Using existing path!");
+        RAVELOG_INFO("Using existing path!");
         // Start off with existing path found by something else.
         ompl::geometric::PathGeometric path(m_simple_setup->getSpaceInformation());
         FromORTrajectory(m_robot, ptraj, path);
         m_planner->as<ompl::geometric::TrajOpt>()->setInitialTrajectory(path);
     } else
     {
-        RAVELOG_WARN("ptraj is not initialized?");
+        RAVELOG_INFO("ptraj is not initialized?");
     }
 
     boost::chrono::steady_clock::time_point const tic
@@ -477,21 +477,35 @@ OpenRAVE::PlannerStatus OMPLOptSimplifier::PlanPath(OpenRAVE::TrajectoryBasePtr 
             file_out.open(m_parameters->m_dat_filename);
             file_out << "[";
 
+            int iteration = 0;
             auto start_time_point = ompl::time::now();
-            auto callback = [&file_out, start_time_point, this](sco::OptProb *prob, std::vector<double> &x, double cost) {
-                static int iteration = 0;
+            auto callback = [&file_out, start_time_point, iteration, this](sco::OptProb *prob, std::vector<double> &x, double cost) mutable {
                 iteration++;
+                double path_length = 0.0;
+                int dim = m_simple_setup->getSpaceInformation()->getStateDimension();
+                for (int i = 1; i < x.size() / dim; i++)
+                {
+                    double dist = 0.0;
+                    for (int j = 0; j < dim; j++)
+                    {
+                      double diff = x[i * dim + j] - x[(i-1) * dim + j];
+                      dist += diff * diff;
+                    }
+                    path_length += sqrt(dist);
+                }
                 if (iteration == 1)
                 {
-                file_out << "{\"iter\":" << iteration << 
-                            ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
-                            ", \"cost\":" << cost << "}";
+                    file_out << "{\"iter\":" << iteration <<
+                                ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
+                                ", \"cost\":" << cost <<
+                                ", \"length\":" << path_length << "}";
                 }
                 else
                 {
-                    file_out << ",{\"iter\":" << iteration << 
+                    file_out << ",{\"iter\":" << iteration <<
                                 ", \"seconds_elapsed\":" << ompl::time::seconds(ompl::time::now() - start_time_point) <<
-                                ", \"cost\":" << cost << "}";
+                                ", \"cost\":" << cost <<
+                                ", \"length\":" << path_length << "}";
                 }
             };
             m_planner->as<ompl::geometric::TrajOpt>()->setOptimizerCallback(callback);

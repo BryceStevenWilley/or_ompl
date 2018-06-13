@@ -155,11 +155,11 @@ protected:
                     RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));
                 }
             } else if (name == "stop_on_first") {
-                std::string strbool; 
+                std::string strbool;
                 _ss >> strbool;
                 if (strbool=="on" || strbool=="yes" || strbool=="1" || strbool=="true" || strbool =="True") {
                     m_stop_on_first == true;
-                } else if (strbool == "off" || strbool=="no" || strbool=="0" || strbool=="false" ||strbool == "False") {
+                } else if (strbool == "off" || strbool=="no" || strbool=="0" || strbool=="false" || strbool == "False") {
                     m_stop_on_first = false;
                 } else {
                     RAVELOG_WARN(str(boost::format("unknown boolean %s, ignoring\n") % strbool));

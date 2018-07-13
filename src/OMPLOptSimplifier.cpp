@@ -66,8 +66,8 @@ Eigen::MatrixXd TrajOptWrapper::jacobianAtPoint(ompl::base::CollisionInfo info, 
 {
     rad_->SetDOFValues(info.x);
     std::string link_name = info.link_names[which];
-    OpenRAVE::Vector stupid_vector(info.points[which].x(), info.points[which].y(), info.points[which].z());
-    return rad_->PositionJacobian(link2index_[link_name], stupid_vector);
+    OpenRAVE::Vector silly_vector(info.points[which].x(), info.points[which].y(), info.points[which].z());
+    return rad_->PositionJacobian(link2index_[link_name], silly_vector);
 }
 
 bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration, 
@@ -155,7 +155,7 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
             collisionStruct.p1 = ptB1;
             collisionStruct.link_name = coll.linkA->GetName();
             collisionStruct.normal = normal;
-            collisionStruct.alpha = coll.time;
+            collisionStruct.alpha = 1 - coll.time;
         }
         else if (itB != link2index_.end())
         {
@@ -164,7 +164,7 @@ bool TrajOptWrapper::extraCollisionInformation(std::vector<double> configuration
             collisionStruct.p1 = ptB1;
             collisionStruct.link_name = coll.linkB->GetName();
             collisionStruct.normal = -normal;
-            collisionStruct.alpha = coll.time;
+            collisionStruct.alpha = 1 - coll.time;
         }
         // Otherwise, two world objects must be in collision with one another.
         else

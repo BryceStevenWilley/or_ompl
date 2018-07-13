@@ -399,9 +399,6 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 
     OpenRAVE::PlannerStatus planner_status;
     try {
-        // TODO: Configure anytime algorithms to keep planning.
-        //m_simpleSetup->getGoal()->setMaximumPathLength(0.0);
-
         // start validity checker
         m_or_validity_checker->start();
         BOOST_SCOPE_EXIT((m_or_validity_checker)) {

@@ -63,6 +63,7 @@ public:
     void stop();
     virtual bool computeFk(const ompl::base::State *state, uint32_t checklimits) const;
     virtual bool isValid(const ompl::base::State *state) const;
+    virtual double clearance(const ompl::base::State *state) const;
     void resetStatistics() { m_numCollisionChecks = 0; m_totalCollisionTime = 0.0; }
     int getNumCollisionChecks() { return m_numCollisionChecks; }
     double getTotalCollisionTime() { return m_totalCollisionTime; }

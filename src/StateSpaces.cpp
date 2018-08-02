@@ -34,7 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/chrono.hpp>
 #include <boost/foreach.hpp>
+#include <boost/shared_ptr.hpp>
 #include <openrave/openrave.h>
+#include <openrave/collisionchecker.h>
 #include <ompl/base/SpaceInformation.h>
 
 #include <or_ompl/StateSpaces.h>
@@ -123,6 +125,44 @@ bool or_ompl::OrStateValidityChecker::isValid(const ompl::base::State *state) co
     }
     
     return !collided;
+}
+
+double or_ompl::OrStateValidityChecker::clearance(const ompl::base::State *state) const {
+    boost::chrono::steady_clock::time_point const tic
+       = boost::chrono::steady_clock::now();
+    
+    if (!m_env->GetCollisionChecker()->SetCollisionOptions(1)) 
+    //OpenRAVE::CollisionOptions.CO_Distance))
+    {
+        RAVELOG_ERROR("Current collision checker doesn't support distance?!");
+        return 0;
+    }
+    bool collided = !computeFk(state, OpenRAVE::KinBody::CLA_Nothing);
+    double dist = 0.0;
+    
+    if (!collided)
+    {
+        if (m_do_baked)
+        {
+            // TODO: not sure what to do here.
+            collided = collided || m_baked_checker->CheckStandaloneSelfCollision(m_baked_kinbody);
+        }
+        else
+        {
+            OpenRAVE::CollisionReportPtr crp;
+            crp.reset(new OpenRAVE::CollisionReport());
+            collided = collided || m_env->CheckCollision(m_robot, crp) || m_robot->CheckSelfCollision();
+             dist = crp->minDistance;
+        }
+
+        boost::chrono::steady_clock::time_point const toc
+            = boost::chrono::steady_clock::now();
+        m_totalCollisionTime += boost::chrono::duration_cast<
+            boost::chrono::duration<double> >(toc - tic).count();
+        m_numCollisionChecks++;
+    }
+    
+    return dist;
 }
 
 or_ompl::RealVectorOrStateValidityChecker::RealVectorOrStateValidityChecker(

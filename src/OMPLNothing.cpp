@@ -61,6 +61,9 @@ OMPLNothing::OMPLNothing(OpenRAVE::EnvironmentBasePtr env)
         RegisterCommand("GetSmoothness",
             boost::bind(&OMPLNothing::GetSmoothness, this, _1, _2),
             "get the OMPL smoothness of the entire path");
+        RegisterCommand("GetClearance",
+            boost::bind(&OMPLNothing::GetClearance, this, _1, _2),
+            "get the clearance of the entire path");
 }
 
 OMPLNothing::~OMPLNothing() {
@@ -208,6 +211,19 @@ bool OMPLNothing::GetSmoothness(std::ostream &sout, std::istream &sin) const
 
     double smoothness = path.smoothness();
     sout << smoothness;
+    return true;
+}
+
+bool OMPLNothing::GetClearance(std::ostream &sout, std::istream &sin) const
+{
+    ompl::geometric::PathGeometric path(m_space_info);
+    readPathGeometric(path, sin);
+
+    // Interpolated to check as detailedly as possible.
+    // TODO(brycew): maybe reconsider this?
+    path.interpolate();
+    double clearance = path.clearance();
+    sout << clearance;
     return true;
 }
 

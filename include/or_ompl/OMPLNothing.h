@@ -55,6 +55,8 @@ public:
 
     virtual bool GetDTW(std::ostream &sout, std::istream &sin) const;
     virtual bool GetSmoothness(std::ostream &sout, std::istream &sin) const;
+    virtual bool GetClearance(std::ostream &sout, std::istream &sin) const;
+
 
 private:
     void readPathGeometric(ompl::geometric::PathGeometric& path, std::istream &sin) const;

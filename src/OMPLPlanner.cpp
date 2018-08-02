@@ -284,12 +284,8 @@ bool OMPLPlanner::InitPlan(OpenRAVE::RobotBasePtr robot,
             if (m_parameters->m_stop_on_first)
             {
                 obj->setCostThreshold(obj->infiniteCost());
-                m_simple_setup->setOptimizationObjective(obj);
             }
-            else
-            {
-                m_simple_setup->setOptimizationObjective(obj);
-            }
+            m_simple_setup->setOptimizationObjective(obj);
         }
 
         m_initialized = true;

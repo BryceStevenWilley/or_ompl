@@ -54,8 +54,11 @@ public:
     virtual PlannerParametersConstPtr GetParameters() const { return m_parameters; }
 
     virtual bool GetDTW(std::ostream &sout, std::istream &sin) const;
+    virtual bool GetSmoothness(std::ostream &sout, std::istream &sin) const;
 
 private:
+    void readPathGeometric(ompl::geometric::PathGeometric& path, std::istream &sin) const;
+
     OpenRAVE::RobotBasePtr m_robot;
     OMPLPlannerParametersPtr m_parameters;
     ompl::base::StateSpacePtr m_state_space;

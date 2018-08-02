@@ -58,6 +58,9 @@ OMPLNothing::OMPLNothing(OpenRAVE::EnvironmentBasePtr env)
         RegisterCommand("GetDTW",
             boost::bind(&OMPLNothing::GetDTW, this, _1, _2),
             "get the dynamic time warping distance between two paths");
+        RegisterCommand("GetSmoothness",
+            boost::bind(&OMPLNothing::GetSmoothness, this, _1, _2),
+            "get the OMPL smoothness of the entire path");
 }
 
 OMPLNothing::~OMPLNothing() {
@@ -170,30 +173,41 @@ OpenRAVE::PlannerStatus OMPLNothing::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
     return PS_HasSolution;
 }
 
-bool OMPLNothing::GetDTW(std::ostream &sout, std::istream &sin) const
+void OMPLNothing::readPathGeometric(ompl::geometric::PathGeometric& path, std::istream &sin) const
 {
     size_t MAX_STR_SIZE = 250000;
-    OpenRAVE::TrajectoryBasePtr traj1 = RaveCreateTrajectory(m_robot->GetEnv());
-    OpenRAVE::TrajectoryBasePtr traj2 = RaveCreateTrajectory(m_robot->GetEnv());
+    OpenRAVE::TrajectoryBasePtr traj = RaveCreateTrajectory(m_robot->GetEnv());
     char *s = (char *)malloc(sizeof(char) * (MAX_STR_SIZE + 1));
     sin.getline(s, MAX_STR_SIZE);
     std::stringbuf sb(s);
-    std::istream s_traj1(&sb);
-    traj1->deserialize(s_traj1);
-    sin.getline(s, MAX_STR_SIZE);
-    std::stringbuf sb2(s);
-    std::istream s_traj2(&sb2);
-    traj2->deserialize(s_traj2);
+    std::istream s_traj(&sb);
+    traj->deserialize(s_traj);
 
+    FromORTrajectory(m_robot, traj, path);
+    free(s);
+    return;
+}
+
+bool OMPLNothing::GetDTW(std::ostream &sout, std::istream &sin) const
+{
     ompl::geometric::PathGeometric path1(m_space_info);
     ompl::geometric::PathGeometric path2(m_space_info);
-    FromORTrajectory(m_robot, traj1, path1);
-    FromORTrajectory(m_robot, traj2, path2);
+    readPathGeometric(path1, sin);
+    readPathGeometric(path2, sin);
 
     ompl::tools::DynamicTimeWarp dtw(m_space_info);
     double dist = dtw.getPathsScore(path1, path2);
     sout << dist;
-    free(s);
+    return true;
+}
+
+bool OMPLNothing::GetSmoothness(std::ostream &sout, std::istream &sin) const
+{
+    ompl::geometric::PathGeometric path(m_space_info);
+    readPathGeometric(path, sin);
+
+    double smoothness = path.smoothness();
+    sout << smoothness;
     return true;
 }
 

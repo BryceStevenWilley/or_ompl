@@ -221,7 +221,7 @@ bool OMPLNothing::GetClearance(std::ostream &sout, std::istream &sin) const
 
     // Interpolated to check as detailedly as possible.
     // TODO(brycew): maybe reconsider this?
-    path.interpolate();
+    //path.interpolate();
     double clearance = path.clearance();
     sout << clearance;
     return true;

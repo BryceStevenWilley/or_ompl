@@ -50,7 +50,11 @@ or_ompl::OrStateValidityChecker::OrStateValidityChecker(
         bool do_baked):
     ompl::base::StateValidityChecker(si),
     m_stateSpace(si->getStateSpace().get()),
-    m_env(robot->GetEnv()), m_robot(robot), m_indices(indices),
+    m_env(robot->GetEnv()),
+    m_normal_checker(m_env->GetCollisionChecker()),
+    m_dist_checker(RaveCreateCollisionChecker(m_env, "pqp")),
+    m_robot(robot), 
+    m_indices(indices),
     m_do_baked(do_baked)
 {
     if (m_do_baked)
@@ -131,12 +135,9 @@ double or_ompl::OrStateValidityChecker::clearance(const ompl::base::State *state
     boost::chrono::steady_clock::time_point const tic
        = boost::chrono::steady_clock::now();
     
-    if (!m_env->GetCollisionChecker()->SetCollisionOptions(1)) 
-    //OpenRAVE::CollisionOptions.CO_Distance))
-    {
-        RAVELOG_ERROR("Current collision checker doesn't support distance?!");
-        return 0;
-    }
+    // Swap for a collision checker that does do collisions.
+    m_env->SetCollisionChecker(m_dist_checker);
+
     bool collided = !computeFk(state, OpenRAVE::KinBody::CLA_Nothing);
     double dist = 0.0;
     
@@ -151,8 +152,10 @@ double or_ompl::OrStateValidityChecker::clearance(const ompl::base::State *state
         {
             OpenRAVE::CollisionReportPtr crp;
             crp.reset(new OpenRAVE::CollisionReport());
-            collided = collided || m_env->CheckCollision(m_robot, crp) || m_robot->CheckSelfCollision();
-             dist = crp->minDistance;
+            collided = collided || m_env->CheckCollision(m_robot, crp);
+            dist = crp->minDistance;
+            collided = collided || m_robot->CheckSelfCollision(crp);
+            dist = std::min(crp->minDistance, dist);
         }
 
         boost::chrono::steady_clock::time_point const toc
@@ -161,6 +164,9 @@ double or_ompl::OrStateValidityChecker::clearance(const ompl::base::State *state
             boost::chrono::duration<double> >(toc - tic).count();
         m_numCollisionChecks++;
     }
+
+    // Swap back.
+    m_env->SetCollisionChecker(m_normal_checker);
     
     return dist;
 }

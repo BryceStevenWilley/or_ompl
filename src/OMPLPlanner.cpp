@@ -425,7 +425,7 @@ OpenRAVE::PlannerStatus OMPLPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
                 }
                 else
                 {
-                    RAVELOG_WARN("No such planner as %s", m_planner->getName().c_str());
+                    //RAVELOG_WARN("No such planner as %s", m_planner->getName().c_str());
                     return -1.0; // ?
                 }
             };

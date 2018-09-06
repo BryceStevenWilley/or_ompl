@@ -577,6 +577,7 @@ bool OMPLOptSimplifier::GetCost(std::ostream & sout, std::istream &sin) const
     ompl::base::OptimizationObjectivePtr opt_obj = m_simple_setup->getOptimizationObjective();
     if (opt_obj == nullptr)
     {
+        RAVELOG_ERROR("We aren't using obstacle costs?");
         opt_obj = std::make_shared<ompl::base::PathLengthOptimizationObjective>(m_simple_setup->getSpaceInformation());
         // Still not there? Return false.
         if (opt_obj == nullptr)

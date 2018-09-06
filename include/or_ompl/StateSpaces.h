@@ -71,6 +71,8 @@ public:
 protected:
     ompl::base::StateSpace * m_stateSpace;
     OpenRAVE::EnvironmentBasePtr m_env;
+    OpenRAVE::CollisionCheckerBasePtr m_normal_checker;
+    OpenRAVE::CollisionCheckerBasePtr m_dist_checker;
     OpenRAVE::RobotBasePtr m_robot;
     std::vector<int> const m_indices;
     mutable int m_numCollisionChecks;
